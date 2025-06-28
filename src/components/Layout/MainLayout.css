@@ -1,0 +1,25 @@
+.main-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Đảm bảo trang có thể cuộn mượt mà */
+.main-layout {
+  scroll-behavior: smooth;
+}
+
+/* Style cho trang full-screen (như game) */
+.main-layout.fullscreen .main-content {
+  padding: 0;
+}
+
+.main-layout.fullscreen {
+  overflow: hidden;
+} 
