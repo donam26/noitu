@@ -126,7 +126,6 @@ const QuizManager = () => {
         // Emit event để reload
         window.dispatchEvent(new CustomEvent('questionsUpdated'));
         
-        alert('✅ Đã xóa câu hỏi khỏi file quizQuestions.js!');
       } else {
         throw new Error('Lỗi khi xóa câu hỏi');
       }

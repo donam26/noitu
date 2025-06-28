@@ -9,17 +9,6 @@
 
 export const quizQuestions = [
   {
-    question: "Quả gì có thể ăn được mà không cần gọt vỏ?",
-    options: [
-      "Quả tim",
-      "Quả cám",
-      "Quả quyết",
-      "Quả nhiên"
-    ],
-    correctAnswer: 3,
-    explanation: "Quả nhiên = Quả thật = Đúng vậy"
-  },
-  {
     question: "Con gì không có cánh mà vẫn bay được?",
     options: [
       "Con bướm",
@@ -281,8 +270,3 @@ export const getRandomQuestion = (usedQuestions = []) => {
  * @returns {number} - Số lượng câu hỏi
  */
 export const getTotalQuestions = () => quizQuestions.length;
-
-/**
- * ĐIỂM CHÈN MỚI - Vị trí này được script sử dụng để thêm câu hỏi mới
- * Không xóa comment này!
- */
