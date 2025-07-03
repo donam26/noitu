@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { quizQuestions } from '../../data/quizQuestions';
+import { knowledgeQuestions } from '../../data/knowledgeQuestions';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
 import './QuizManager.css';
 
 /**
- * Component QuizManager - Quản lý CRUD câu hỏi quiz
+ * Component KnowledgeQuizManager - Quản lý CRUD câu hỏi Vua Kiến Thức
  */
-const QuizManager = () => {
+const KnowledgeQuizManager = () => {
   const [questions, setQuestions] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
@@ -22,13 +22,13 @@ const QuizManager = () => {
   useEffect(() => {
     const loadQuestions = () => {
       // Import lại module để lấy dữ liệu mới nhất
-      import('../../data/quizQuestions').then(module => {
-        const questions = module.quizQuestions;
-        console.log(`📚 Load từ file gốc: ${questions.length} câu hỏi`);
+      import('../../data/knowledgeQuestions').then(module => {
+        const questions = module.knowledgeQuestions;
+        console.log(`📚 Load câu hỏi kiến thức từ file: ${questions.length} câu hỏi`);
         setQuestions(questions.map((q, index) => ({ ...q, id: index })));
       }).catch(error => {
-        console.error('Error loading questions:', error);
-        setQuestions(quizQuestions.map((q, index) => ({ ...q, id: index })));
+        console.error('Error loading knowledge questions:', error);
+        setQuestions(knowledgeQuestions.map((q, index) => ({ ...q, id: index })));
       });
     };
 
@@ -36,17 +36,16 @@ const QuizManager = () => {
 
     // Lắng nghe sự kiện từ AI Assistant
     const handleQuestionsUpdated = () => {
-      console.log('🔄 Nhận được event questionsUpdated, đang reload module...');
-      // Reload trang để import lại module đã được cập nhật
+      console.log('🔄 Nhận được event knowledgeQuestionsUpdated, đang reload module...');
       setTimeout(() => {
         window.location.reload();
       }, 1000);
     };
 
-    window.addEventListener('questionsUpdated', handleQuestionsUpdated);
+    window.addEventListener('knowledgeQuestionsUpdated', handleQuestionsUpdated);
 
     return () => {
-      window.removeEventListener('questionsUpdated', handleQuestionsUpdated);
+      window.removeEventListener('knowledgeQuestionsUpdated', handleQuestionsUpdated);
     };
   }, []);
 
@@ -109,7 +108,7 @@ const QuizManager = () => {
       const questionsData = updatedQuestions.map(({ id, ...q }) => q);
       
       // Gọi API cập nhật toàn bộ file
-      const response = await fetch('http://localhost:3001/api/update-all-questions', {
+      const response = await fetch('http://localhost:3001/api/update-all-knowledge-questions', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -118,16 +117,16 @@ const QuizManager = () => {
       });
 
       if (response.ok) {
-        console.log('✅ Đã xóa câu hỏi khỏi file thành công');
+        console.log('✅ Đã xóa câu hỏi kiến thức khỏi file thành công');
         
         // Cập nhật state
         setQuestions(updatedQuestions);
         
         // Emit event để reload
-        window.dispatchEvent(new CustomEvent('questionsUpdated'));
+        window.dispatchEvent(new CustomEvent('knowledgeQuestionsUpdated'));
         
       } else {
-        throw new Error('Lỗi khi xóa câu hỏi');
+        throw new Error('Lỗi khi xóa câu hỏi kiến thức');
       }
     } catch (error) {
       console.error('❌ Lỗi:', error);
@@ -156,7 +155,7 @@ const QuizManager = () => {
         const questionsData = updatedQuestions.map(({ id, ...q }) => q);
         
         // Gọi API cập nhật toàn bộ file
-        const response = await fetch('http://localhost:3001/api/update-all-questions', {
+        const response = await fetch('http://localhost:3001/api/update-all-knowledge-questions', {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -165,17 +164,17 @@ const QuizManager = () => {
         });
 
         if (response.ok) {
-          console.log('✅ Đã cập nhật câu hỏi trong file thành công');
+          console.log('✅ Đã cập nhật câu hỏi kiến thức trong file thành công');
           
           // Cập nhật state
           setQuestions(updatedQuestions);
           
           // Emit event để reload
-          window.dispatchEvent(new CustomEvent('questionsUpdated'));
+          window.dispatchEvent(new CustomEvent('knowledgeQuestionsUpdated'));
           
-          alert('✅ Đã cập nhật câu hỏi trong file quizQuestions.js!');
+          alert('✅ Đã cập nhật câu hỏi trong file knowledgeQuestions.js!');
         } else {
-          throw new Error('Lỗi khi cập nhật câu hỏi');
+          throw new Error('Lỗi khi cập nhật câu hỏi kiến thức');
         }
       } catch (error) {
         console.error('❌ Lỗi:', error);
@@ -192,7 +191,7 @@ const QuizManager = () => {
       };
 
       try {
-        const response = await fetch('http://localhost:3001/api/update-quiz-questions', {
+        const response = await fetch('http://localhost:3001/api/update-knowledge-questions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -201,24 +200,22 @@ const QuizManager = () => {
         });
 
         if (response.ok) {
-          const result = await response.json();
-          console.log('✅ Đã thêm câu hỏi vào file thành công');
+          console.log('✅ Đã thêm câu hỏi kiến thức mới vào file thành công');
           
-          // Cập nhật state và reload
-          const newId = Math.max(...questions.map(q => q.id), -1) + 1;
-          const updatedQuestions = [...questions, { ...formData, id: newId }];
-          setQuestions(updatedQuestions);
+          // Cập nhật local state
+          const newQuestion = { ...newQuestionData, id: questions.length };
+          setQuestions([...questions, newQuestion]);
           
           // Emit event để reload
-          window.dispatchEvent(new CustomEvent('questionsUpdated'));
+          window.dispatchEvent(new CustomEvent('knowledgeQuestionsUpdated'));
           
-          alert('✅ Đã thêm câu hỏi vào file quizQuestions.js!');
+          alert('✅ Đã thêm câu hỏi mới vào file knowledgeQuestions.js!');
         } else {
-          throw new Error('Lỗi khi thêm câu hỏi');
+          throw new Error('Lỗi khi thêm câu hỏi kiến thức');
         }
       } catch (error) {
         console.error('❌ Lỗi:', error);
-        alert(`❌ Không thể lưu vào file: ${error.message}`);
+        alert(`❌ Không thể thêm: ${error.message}`);
         return;
       }
     }
@@ -227,31 +224,37 @@ const QuizManager = () => {
     resetForm();
   };
 
+  // Cập nhật input của form
+  const updateFormData = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   // Cập nhật option
   const updateOption = (index, value) => {
     const newOptions = [...formData.options];
     newOptions[index] = value;
-    setFormData({ ...formData, options: newOptions });
+    updateFormData('options', newOptions);
   };
 
   // Export dữ liệu
   const handleExport = () => {
-    const dataToExport = questions.map(({ id, ...q }) => q);
-    const dataStr = JSON.stringify(dataToExport, null, 2);
+    const dataStr = JSON.stringify(questions.map(({ id, ...q }) => q), null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'quiz_questions.json';
+    link.download = 'knowledge_questions_export.json';
     link.click();
+    
+    alert(`✅ Đã export ${questions.length} câu hỏi kiến thức!`);
   };
 
   return (
     <div className="quiz-manager">
       <div className="quiz-header">
         <div className="quiz-title">
-          <h2>📝 Quản lý Câu hỏi ngu</h2>
-          <p>Tổng số: {questions.length} câu hỏi</p>
+          <h2>🧠 Quản lý Câu hỏi Kiến Thức</h2>
+          <p>Tổng số: {questions.length} câu hỏi về khoa học, thiên nhiên và văn hóa</p>
         </div>
         <div className="quiz-actions">
           <Button
@@ -311,7 +314,7 @@ const QuizManager = () => {
                   </button>
                 </div>
               </div>
-
+              
               <div className="question-content">
                 <h4>{question.question}</h4>
                 <div className="options-grid">
@@ -352,17 +355,19 @@ const QuizManager = () => {
         <div className="pagination">
           <Button
             variant="secondary"
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
           >
             ← Trước
           </Button>
+          
           <span className="page-info">
             Trang {currentPage} / {totalPages}
           </span>
+          
           <Button
             variant="secondary"
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages}
           >
             Sau →
@@ -376,7 +381,7 @@ const QuizManager = () => {
           <div className="quiz-modal">
             <div className="modal-header">
               <h3>
-                {editingQuestion ? '✏️ Chỉnh sửa câu hỏi' : '➕ Thêm câu hỏi mới'}
+                {editingQuestion ? '✏️ Chỉnh sửa câu hỏi kiến thức' : '➕ Thêm câu hỏi kiến thức'}
               </h3>
               <button
                 className="close-btn"
@@ -388,11 +393,11 @@ const QuizManager = () => {
 
             <div className="modal-content">
               <div className="form-group">
-                <label>Câu hỏi *</label>
+                <label>Câu hỏi kiến thức *</label>
                 <textarea
                   value={formData.question}
-                  onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-                  placeholder="Nhập nội dung câu hỏi..."
+                  onChange={(e) => updateFormData('question', e.target.value)}
+                  placeholder="Nhập câu hỏi về khoa học, thiên nhiên, văn hóa..."
                   rows="3"
                   required
                 />
@@ -416,7 +421,7 @@ const QuizManager = () => {
                       type="radio"
                       name="correctAnswer"
                       checked={formData.correctAnswer === index}
-                      onChange={() => setFormData({ ...formData, correctAnswer: index })}
+                      onChange={() => updateFormData('correctAnswer', index)}
                       title="Đáp án đúng"
                     />
                   </div>
@@ -428,8 +433,8 @@ const QuizManager = () => {
                 <label>Giải thích (tuỳ chọn)</label>
                 <textarea
                   value={formData.explanation}
-                  onChange={(e) => setFormData({ ...formData, explanation: e.target.value })}
-                  placeholder="Giải thích tại sao đáp án này đúng..."
+                  onChange={(e) => updateFormData('explanation', e.target.value)}
+                  placeholder="Giải thích khoa học chi tiết về đáp án đúng..."
                   rows="2"
                 />
               </div>
@@ -437,16 +442,18 @@ const QuizManager = () => {
 
             <div className="modal-footer">
               <Button
-                variant="secondary"
-                onClick={() => setShowModal(false)}
-              >
-                Hủy
-              </Button>
-              <Button
                 variant="primary"
                 onClick={handleSave}
+                className="save-btn"
               >
-                {editingQuestion ? 'Cập nhật' : 'Thêm mới'}
+                💾 {editingQuestion ? 'Cập nhật' : 'Thêm'}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setShowModal(false)}
+                className="cancel-btn"
+              >
+                ❌ Hủy
               </Button>
             </div>
           </div>
@@ -456,7 +463,7 @@ const QuizManager = () => {
       {/* Delete Confirmation */}
       <Modal
         isOpen={showDeleteConfirm}
-        title="🗑️ Xác nhận xóa"
+        title="🗑️ Xác nhận xóa câu hỏi kiến thức"
         message={`Bạn có chắc muốn xóa câu hỏi: "${questionToDelete?.question}"?`}
         onConfirm={confirmDelete}
         onClose={() => setShowDeleteConfirm(false)}
@@ -467,4 +474,4 @@ const QuizManager = () => {
   );
 };
 
-export default QuizManager; 
+export default KnowledgeQuizManager; 

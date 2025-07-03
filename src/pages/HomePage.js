@@ -32,6 +32,34 @@ const HomePage = () => {
       available: true
     },
     {
+      id: 'behavior-quiz',
+      title: 'Vua Ứng Xử',
+      icon: '🤝',
+      color: 'secondary',
+      available: true
+    },
+    {
+      id: 'knowledge-quiz',
+      title: 'Vua Kiến Thức',
+      icon: '🧠',
+      color: 'primary',
+      available: true
+    },
+    {
+      id: 'universe-answer',
+      title: 'Câu trả lời từ vũ trụ',
+      icon: '🌌',
+      color: 'secondary',
+      available: true
+    },
+    {
+      id: 'guess-who',
+      title: 'Tôi là ai',
+      icon: '🕵️',
+      color: 'primary',
+      available: true
+    },
+    {
       id: 'wordle',
       title: 'Wordle Tiếng Việt',
       icon: '🎯',
@@ -47,6 +75,14 @@ const HomePage = () => {
       navigate('/word-scramble');
     } else if (gameId === 'quiz') {
       navigate('/quiz');
+    } else if (gameId === 'behavior-quiz') {
+      navigate('/behavior-quiz');
+    } else if (gameId === 'knowledge-quiz') {
+      navigate('/knowledge-quiz');
+    } else if (gameId === 'universe-answer') {
+      navigate('/universe-answer');
+    } else if (gameId === 'guess-who') {
+      navigate('/guess-who');
     } else if (gameId === 'wordle') {
       navigate('/wordle');
     } else {

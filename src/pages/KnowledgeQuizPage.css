@@ -1,0 +1,41 @@
+/* Import base styles từ QuizPage */
+@import './QuizPage.css';
+
+/* Custom styling cho Knowledge Quiz */
+.knowledge-quiz-page {
+  background: linear-gradient(135deg, #805ad5 0%, #553c9a 100%);
+}
+
+.knowledge-quiz-page .quiz-screen {
+  background: transparent;
+}
+
+.knowledge-quiz-page .game-container {
+  border: 2px solid #805ad5;
+}
+
+.knowledge-quiz-page .question-counter {
+  background: #faf5ff;
+  color: #553c9a;
+}
+
+.knowledge-quiz-page .current-score {
+  background: linear-gradient(135deg, #805ad5 0%, #553c9a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.knowledge-quiz-page .question-text {
+  border-left-color: #805ad5;
+}
+
+.knowledge-quiz-page .option-letter {
+  color: #553c9a;
+  background: #faf5ff;
+}
+
+.knowledge-quiz-page .option-button:hover:not(.disabled) {
+  border-color: #805ad5;
+  box-shadow: 0 8px 25px rgba(128, 90, 213, 0.15);
+} 

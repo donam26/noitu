@@ -12,21 +12,46 @@ const AIAssistant = ({ onAddQuestions }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedQuestions, setGeneratedQuestions] = useState([]);
   const [selectedQuestions, setSelectedQuestions] = useState(new Set());
+  const [questionType, setQuestionType] = useState('quiz');
 
   // API key cố định (đã được fix)
   const API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
 
-  // Prompt cố định cho câu hỏi "ngu" và vui nhộn
-  const DEFAULT_PROMPT = `Tạo 5 câu hỏi "hỏi ngu" vui nhộn và hài hước cho game quiz tiếng Việt. 
-  Câu hỏi phải có tính chất đánh lừa nhẹ nhàng, có twist bất ngờ, hoặc câu trả lời không như người chơi nghĩ.
-  Mỗi câu hỏi cần có 4 lựa chọn và 1 đáp án đúng thú vị.
-  
-  Ví dụ:
-  - "Một tháng mù đi du lịch ở bắc cực thấy gì?" → "Thấy toàn màu đen"
-  - "Nếu bạn có 10 ngón tay và cắt đi 2 ngón, bạn còn bao nhiêu ngón tay?" → "10 ngón (chỉ cắt đi chứ không mất)"
-  - "Cái gì càng nhiều càng ít thấy?" → "Sương mù"
-  
-  Hãy tạo câu hỏi theo phong cách này.`;
+  // Prompt cố định cho từng loại câu hỏi
+  const DEFAULT_PROMPTS = {
+    quiz: `Tạo 5 câu hỏi "hỏi ngu" vui nhộn và hài hước cho game quiz tiếng Việt. 
+    Câu hỏi phải có tính chất đánh lừa nhẹ nhàng, có twist bất ngờ, hoặc câu trả lời không như người chơi nghĩ.
+    Mỗi câu hỏi cần có 4 lựa chọn và 1 đáp án đúng thú vị.
+    
+    Ví dụ:
+    - "Một tháng mù đi du lịch ở bắc cực thấy gì?" → "Thấy toàn màu đen"
+    - "Nếu bạn có 10 ngón tay và cắt đi 2 ngón, bạn còn bao nhiêu ngón tay?" → "10 ngón (chỉ cắt đi chứ không mất)"
+    - "Cái gì càng nhiều càng ít thấy?" → "Sương mù"
+    
+    Hãy tạo câu hỏi theo phong cách này.`,
+    
+    behavior: `Tạo 5 câu hỏi về ứng xử, đạo đức và giáo dục công dân cho trẻ em Việt Nam.
+    Câu hỏi nên giáo dục về cách cư xử đúng mực, tôn trọng người khác, ý thức pháp luật và giá trị đạo đức.
+    Mỗi câu hỏi cần có 4 lựa chọn với 1 đáp án đúng thể hiện hành vi tích cực.
+    
+    Ví dụ:
+    - "Khi thấy bạn bị bắt nạt ở trường, em nên làm gì?" → "Báo cho thầy cô và an ủi bạn"
+    - "Khi đi trên đường, em thấy có rác, em nên?" → "Nhặt lên bỏ vào thùng rác"
+    - "Nếu nhặt được tiền, em sẽ làm gì?" → "Nộp cho thầy cô hoặc công an"
+    
+    Hãy tạo câu hỏi giáo dục tích cực cho trẻ em.`,
+    
+    knowledge: `Tạo 5 câu hỏi về sự thật thú vị trong khoa học, thiên nhiên và văn hóa cho trẻ em.
+    Câu hỏi nên bổ ích, dễ hiểu và kích thích trí tò mò của trẻ em về thế giới xung quanh.
+    Mỗi câu hỏi cần có 4 lựa chọn với 1 đáp án đúng có giải thích khoa học hoặc văn hóa.
+    
+    Ví dụ:
+    - "Tại sao bầu trời có màu xanh?" → "Ánh sáng xanh bị tán xạ nhiều nhất"
+    - "Động vật nào có tim to nhất thế giới?" → "Cá voi xanh"
+    - "Mặt trăng cách Trái đất bao xa?" → "Khoảng 384.400 km"
+    
+    Hãy tạo câu hỏi khoa học thú vị và bổ ích.`
+  };
 
   // Call OpenAI API
   const callOpenAI = async (prompt) => {
@@ -81,9 +106,9 @@ const AIAssistant = ({ onAddQuestions }) => {
     }
   };
 
-  // Tạo câu hỏi "ngu" và vui nhộn
+  // Tạo câu hỏi theo loại đã chọn
   const generateQuestions = async (useCustom = false) => {
-    const prompt = useCustom && customPrompt.trim() ? customPrompt : DEFAULT_PROMPT;
+    const prompt = useCustom && customPrompt.trim() ? customPrompt : DEFAULT_PROMPTS[questionType];
     
     if (useCustom && !customPrompt.trim()) {
       alert('⚠️ Vui lòng nhập yêu cầu tùy chỉnh!');
@@ -105,29 +130,53 @@ const AIAssistant = ({ onAddQuestions }) => {
     } catch (error) {
       console.error('Error:', error);
       
-      // Fallback mock data
-      const mockQuestions = [
-        {
-          question: "Nếu bạn có 10 ngón tay và cắt đi 2 ngón, bạn còn bao nhiêu ngón tay?",
-          options: ["8 ngón", "10 ngón", "2 ngón", "Không còn ngón nào"],
-          correctAnswer: 1,
-          explanation: "Bạn vẫn có 10 ngón tay! Chỉ cắt đi 2 ngón chứ không phải mất 2 ngón."
-        },
-        {
-          question: "Cái gì càng nhiều càng ít thấy?",
-          options: ["Ánh sáng", "Bóng tối", "Sương mù", "Nước"],
-          correctAnswer: 2,
-          explanation: "Sương mù càng nhiều thì tầm nhìn càng hạn chế!"
-        },
-        {
-          question: "Tại sao người ta nói 'ngủ như chết'?",
-          options: ["Vì ngủ rất sâu", "Vì không động đậy", "Vì không nghe tiếng động", "Vì giống như chết thật"],
-          correctAnswer: 0,
-          explanation: "Đây là cách nói về giấc ngủ rất sâu và ngon!"
-        }
-      ];
+      // Fallback mock data theo loại câu hỏi
+      const mockQuestions = {
+        quiz: [
+          {
+            question: "Nếu bạn có 10 ngón tay và cắt đi 2 ngón, bạn còn bao nhiêu ngón tay?",
+            options: ["8 ngón", "10 ngón", "2 ngón", "Không còn ngón nào"],
+            correctAnswer: 1,
+            explanation: "Bạn vẫn có 10 ngón tay! Chỉ cắt đi 2 ngón chứ không phải mất 2 ngón."
+          },
+          {
+            question: "Cái gì càng nhiều càng ít thấy?",
+            options: ["Ánh sáng", "Bóng tối", "Sương mù", "Nước"],
+            correctAnswer: 2,
+            explanation: "Sương mù càng nhiều thì tầm nhìn càng hạn chế!"
+          }
+        ],
+        behavior: [
+          {
+            question: "Khi thấy bạn bị bắt nạt ở trường, em nên làm gì?",
+            options: ["Im lặng và bỏ qua", "Cười và chế nhạo", "Báo cho thầy cô và an ủi bạn", "Tham gia cùng bắt nạt"],
+            correctAnswer: 2,
+            explanation: "Chúng ta nên giúp đỡ bạn bè khi gặp khó khăn và báo cho người lớn."
+          },
+          {
+            question: "Khi đi trên đường thấy có rác, em nên?",
+            options: ["Đi qua không quan tâm", "Nhặt lên bỏ vào thùng rác", "Đá cho xa hơn", "Chụp ảnh đăng mạng"],
+            correctAnswer: 1,
+            explanation: "Mỗi người có trách nhiệm giữ gìn môi trường sống chung."
+          }
+        ],
+        knowledge: [
+          {
+            question: "Tại sao bầu trời có màu xanh?",
+            options: ["Vì phản chiếu đại dương", "Vì ánh sáng xanh bị tán xạ nhiều nhất", "Vì có khí oxy", "Vì có mây xanh"],
+            correctAnswer: 1,
+            explanation: "Ánh sáng xanh có bước sóng ngắn nên bị tán xạ mạnh nhất trong khí quyển."
+          },
+          {
+            question: "Động vật nào có tim to nhất thế giới?",
+            options: ["Voi châu Phi", "Cá voi xanh", "Khủng long", "Hà mã"],
+            correctAnswer: 1,
+            explanation: "Tim của cá voi xanh có thể nặng đến 180kg và to bằng một chiếc ô tô nhỏ."
+          }
+        ]
+      };
 
-      setGeneratedQuestions(mockQuestions);
+      setGeneratedQuestions(mockQuestions[questionType] || mockQuestions.quiz);
       setSelectedQuestions(new Set());
     } finally {
       setIsGenerating(false);
@@ -146,7 +195,7 @@ const AIAssistant = ({ onAddQuestions }) => {
     );
 
     if (onAddQuestions) {
-      onAddQuestions(selectedData);
+      onAddQuestions(selectedData, questionType);
       alert(`✅ Đã thêm ${selectedQuestions.size} câu hỏi vào hệ thống!`);
       
       // Reset sau khi thêm
@@ -183,25 +232,49 @@ const AIAssistant = ({ onAddQuestions }) => {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'ai_generated_questions.json';
+    link.download = `ai_generated_${questionType}_questions.json`;
     link.click();
 
     alert(`✅ Đã export ${selectedQuestions.size} câu hỏi!`);
   };
 
+  const questionTypeLabels = {
+    quiz: { icon: '🤪', title: 'Vua Hỏi Ngu', desc: 'Câu hỏi vui nhộn và hài hước' },
+    behavior: { icon: '🤝', title: 'Vua Ứng Xử', desc: 'Câu hỏi về đạo đức và ứng xử' },
+    knowledge: { icon: '🧠', title: 'Vua Kiến Thức', desc: 'Câu hỏi về khoa học và văn hóa' }
+  };
+
   return (
     <div className="ai-assistant-simple">
       <div className="ai-header">
-        <h2>🤪 Trợ lý Tạo Câu "Hỏi Ngu"</h2>
-        <p>Tạo câu hỏi vui nhộn và hài hước cho game quiz</p>
+        <h2>{questionTypeLabels[questionType].icon} Trợ lý Tạo Câu {questionTypeLabels[questionType].title}</h2>
+        <p>{questionTypeLabels[questionType].desc}</p>
+      </div>
+
+      {/* Question Type Selector */}
+      <div className="type-selector">
+        <h3>🎯 Chọn loại câu hỏi:</h3>
+        <div className="type-tabs">
+          {Object.entries(questionTypeLabels).map(([type, config]) => (
+            <button
+              key={type}
+              className={`type-tab ${questionType === type ? 'active' : ''}`}
+              onClick={() => setQuestionType(type)}
+            >
+              <span className="tab-icon">{config.icon}</span>
+              <span className="tab-title">{config.title}</span>
+              <span className="tab-desc">{config.desc}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Quick Generate */}
       <div className="quick-section">
         <div className="quick-card">
           <div className="quick-info">
-            <h3>🎯 Tạo câu hỏi "Hỏi Ngu"</h3>
-            <p>AI sẽ tự động tạo 5 câu hỏi vui nhộn với twist bất ngờ</p>
+            <h3>🎯 Tạo câu hỏi {questionTypeLabels[questionType].title}</h3>
+            <p>AI sẽ tự động tạo 5 {questionTypeLabels[questionType].desc.toLowerCase()}</p>
           </div>
           <Button
             variant="primary"

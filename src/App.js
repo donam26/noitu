@@ -5,6 +5,10 @@ import HomePage from './pages/HomePage';
 import WordChainPage from './pages/WordChainPage';
 import WordScramblePage from './pages/WordScramblePage';
 import QuizPage from './pages/QuizPage';
+import BehaviorQuizPage from './pages/BehaviorQuizPage';
+import KnowledgeQuizPage from './pages/KnowledgeQuizPage';
+import UniverseAnswerPage from './pages/UniverseAnswerPage';
+import GuessWhoPage from './pages/GuessWhoPage';
 import WordlePage from './pages/WordlePage';
 import AdminPage from './pages/AdminPage';
 import './App.css';
@@ -53,6 +57,46 @@ function App() {
             element={
               <MainLayout showHeader={false} showFooter={false}>
                 <QuizPage />
+              </MainLayout>
+            } 
+          />
+          
+          {/* Trang game Vua ứng xử - full screen không có header/footer */}
+          <Route 
+            path="/behavior-quiz" 
+            element={
+              <MainLayout showHeader={false} showFooter={false}>
+                <BehaviorQuizPage />
+              </MainLayout>
+            } 
+          />
+          
+          {/* Trang game Vua kiến thức - full screen không có header/footer */}
+          <Route 
+            path="/knowledge-quiz" 
+            element={
+              <MainLayout showHeader={false} showFooter={false}>
+                <KnowledgeQuizPage />
+              </MainLayout>
+            } 
+          />
+          
+          {/* Trang game Câu trả lời từ vũ trụ - full screen không có header/footer */}
+          <Route 
+            path="/universe-answer" 
+            element={
+              <MainLayout showHeader={false} showFooter={false}>
+                <UniverseAnswerPage />
+              </MainLayout>
+            } 
+          />
+          
+          {/* Trang game Tôi là ai - full screen không có header/footer */}
+          <Route 
+            path="/guess-who" 
+            element={
+              <MainLayout showHeader={false} showFooter={false}>
+                <GuessWhoPage />
               </MainLayout>
             } 
           />

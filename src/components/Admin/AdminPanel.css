@@ -77,8 +77,21 @@
   min-width: 24px;
 }
 
+.nav-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .nav-label {
   font-weight: 600;
+}
+
+.nav-count {
+  font-size: 0.8rem;
+  font-weight: 400;
+  opacity: 0.8;
 }
 
 /* Sidebar Footer */
@@ -167,6 +180,10 @@
     font-size: 0.8rem;
   }
   
+  .nav-count {
+    font-size: 0.7rem;
+  }
+  
   .sidebar-footer {
     padding: 15px 20px;
   }
@@ -187,6 +204,10 @@
   }
   
   .nav-label {
+    display: none;
+  }
+  
+  .nav-count {
     display: none;
   }
   

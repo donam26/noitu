@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import QuizManager from './QuizManager';
+import BehaviorQuizManager from './BehaviorQuizManager';
+import KnowledgeQuizManager from './KnowledgeQuizManager';
 import AIAssistant from './AIAssistant';
 import Button from '../common/Button';
 import './AdminPanel.css';
@@ -18,12 +20,33 @@ const AdminPanel = ({ onLogout }) => {
   };
 
   // Callback để thêm câu hỏi từ AI vào hệ thống
-  const handleAddQuestions = async (newQuestions) => {
-    console.log(`🤖 AI thêm ${newQuestions.length} câu hỏi mới`);
+  const handleAddQuestions = async (newQuestions, questionType = 'quiz') => {
+    console.log(`🤖 AI thêm ${newQuestions.length} câu hỏi ${questionType} mới`);
     
     try {
-      // Gọi API để cập nhật file quizQuestions.js
-      const response = await fetch('http://localhost:3001/api/update-quiz-questions', {
+      let apiEndpoint;
+      let eventName;
+      let fileName;
+      
+      switch (questionType) {
+        case 'behavior':
+          apiEndpoint = 'update-behavior-questions';
+          eventName = 'behaviorQuestionsUpdated';
+          fileName = 'behaviorQuestions.js';
+          break;
+        case 'knowledge':
+          apiEndpoint = 'update-knowledge-questions';
+          eventName = 'knowledgeQuestionsUpdated';
+          fileName = 'knowledgeQuestions.js';
+          break;
+        default:
+          apiEndpoint = 'update-quiz-questions';
+          eventName = 'questionsUpdated';
+          fileName = 'quizQuestions.js';
+      }
+      
+      // Gọi API để cập nhật file
+      const response = await fetch(`http://localhost:3001/api/${apiEndpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -33,15 +56,15 @@ const AdminPanel = ({ onLogout }) => {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Đã cập nhật file quizQuestions.js thành công');
+        console.log(`✅ Đã cập nhật file ${fileName} thành công`);
         console.log('📄', result.output);
         
-        // Emit event để QuizManager reload
-        window.dispatchEvent(new CustomEvent('questionsUpdated'));
-        console.log('📡 Đã emit event questionsUpdated');
+        // Emit event để manager tương ứng reload
+        window.dispatchEvent(new CustomEvent(eventName));
+        console.log(`📡 Đã emit event ${eventName}`);
         
         // Thông báo thành công
-        alert(`✅ Đã thêm ${newQuestions.length} câu hỏi vào file quizQuestions.js!`);
+        alert(`✅ Đã thêm ${newQuestions.length} câu hỏi vào file ${fileName}!`);
         return true;
       } else {
         const error = await response.json();
@@ -54,18 +77,58 @@ const AdminPanel = ({ onLogout }) => {
     }
   };
 
+  // Import data để hiển thị số lượng
+  const [quizCount, setQuizCount] = useState(0);
+  const [behaviorCount, setBehaviorCount] = useState(0);
+  const [knowledgeCount, setKnowledgeCount] = useState(0);
+
+  // Load counts
+  useEffect(() => {
+    const loadCounts = async () => {
+      try {
+        const [quiz, behavior, knowledge] = await Promise.all([
+          import('../../data/quizQuestions'),
+          import('../../data/behaviorQuestions'), 
+          import('../../data/knowledgeQuestions')
+        ]);
+        setQuizCount(quiz.quizQuestions?.length || 0);
+        setBehaviorCount(behavior.behaviorQuestions?.length || 0);
+        setKnowledgeCount(knowledge.knowledgeQuestions?.length || 0);
+      } catch (error) {
+        console.log('Không thể load counts:', error);
+      }
+    };
+    loadCounts();
+  }, []);
+
   const tabs = [
     {
       id: 'quiz',
-      label: '📝 Quản lý Câu hỏi',
+      label: '📝 Vua Hỏi Ngu',
       icon: '📝',
-      component: QuizManager
+      component: QuizManager,
+      count: quizCount
+    },
+    {
+      id: 'behavior',
+      label: '🤝 Vua Ứng Xử',
+      icon: '🤝',
+      component: BehaviorQuizManager,
+      count: behaviorCount
+    },
+    {
+      id: 'knowledge',
+      label: '🧠 Vua Kiến Thức',
+      icon: '🧠',
+      component: KnowledgeQuizManager,
+      count: knowledgeCount
     },
     {
       id: 'ai',
       label: '🤖 AI Assistant',
       icon: '🤖', 
-      component: AIAssistant
+      component: AIAssistant,
+      count: null
     }
   ];
 
@@ -88,7 +151,12 @@ const AdminPanel = ({ onLogout }) => {
               onClick={() => setActiveTab(tab.id)}
             >
               <span className="nav-icon">{tab.icon}</span>
-              <span className="nav-label">{tab.label}</span>
+              <div className="nav-content">
+                <span className="nav-label">{tab.label}</span>
+                {tab.count !== null && (
+                  <span className="nav-count">{tab.count} câu hỏi</span>
+                )}
+              </div>
             </button>
           ))}
         </nav>

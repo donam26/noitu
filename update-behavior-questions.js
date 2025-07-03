@@ -2,9 +2,12 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Script để thêm câu hỏi mới vào file quizQuestions.js
- * Không ghi đè, chỉ append thêm câu hỏi mới
+ * Script để cập nhật file behaviorQuestions.js
+ * Có thể thêm mới hoặc ghi đè toàn bộ mảng câu hỏi ứng xử
  */
+
+const args = process.argv.slice(2);
+const operation = args[0]; // 'append' hoặc 'replace'
 
 // Đọc dữ liệu từ stdin
 let inputData = '';
@@ -17,29 +20,22 @@ process.stdin.on('data', (chunk) => {
 process.stdin.on('end', () => {
   try {
     const newQuestions = JSON.parse(inputData);
-    appendQuizFile(newQuestions);
+    
+    if (operation === 'replace') {
+      replaceBehaviorFile(newQuestions);
+    } else {
+      appendBehaviorFile(newQuestions);
+    }
   } catch (error) {
     console.error('❌ Lỗi parse JSON:', error.message);
     process.exit(1);
   }
 });
 
-function appendQuizFile(newQuestions) {
-  const filePath = path.join(__dirname, 'src', 'data', 'quizQuestions.js');
+function replaceBehaviorFile(allQuestions) {
+  const filePath = path.join(__dirname, 'src', 'data', 'behaviorQuestions.js');
   
   try {
-    // Đọc file hiện tại
-    let existingQuestions = [];
-    if (fs.existsSync(filePath)) {
-      // Import module để lấy dữ liệu hiện có
-      delete require.cache[require.resolve('./src/data/quizQuestions.js')];
-      const existingData = require('./src/data/quizQuestions.js');
-      existingQuestions = existingData.quizQuestions || [];
-    }
-    
-    // Gộp câu hỏi mới
-    const allQuestions = [...existingQuestions, ...newQuestions];
-    
     // Tạo nội dung file mới
     const questionsString = allQuestions.map(q => `  {
     question: "${q.question.replace(/"/g, '\\"')}",
@@ -54,7 +50,8 @@ function appendQuizFile(newQuestions) {
   }`).join(',\n');
 
     const fileContent = `/**
- * Data câu hỏi cho game "Hỏi Ngu"
+ * Data câu hỏi cho game "Vua Ứng Xử"
+ * Câu hỏi về đạo đức, ứng xử và giáo dục công dân cho trẻ em
  * Mỗi câu hỏi có cấu trúc:
  * - question: Nội dung câu hỏi
  * - options: Mảng 4 lựa chọn
@@ -62,7 +59,7 @@ function appendQuizFile(newQuestions) {
  * - explanation: Giải thích đáp án (optional)
  */
 
-export const quizQuestions = [
+export const behaviorQuestions = [
 ${questionsString}
 ];
 
@@ -71,8 +68,8 @@ ${questionsString}
  * @param {Array} usedQuestions - Mảng index các câu đã sử dụng
  * @returns {Object} - Object chứa câu hỏi và index
  */
-export const getRandomQuestion = (usedQuestions = []) => {
-  const availableQuestions = quizQuestions.filter((_, index) => 
+export const getRandomBehaviorQuestion = (usedQuestions = []) => {
+  const availableQuestions = behaviorQuestions.filter((_, index) => 
     !usedQuestions.includes(index)
   );
   
@@ -82,7 +79,7 @@ export const getRandomQuestion = (usedQuestions = []) => {
   
   const randomIndex = Math.floor(Math.random() * availableQuestions.length);
   const selectedQuestion = availableQuestions[randomIndex];
-  const originalIndex = quizQuestions.indexOf(selectedQuestion);
+  const originalIndex = behaviorQuestions.indexOf(selectedQuestion);
   
   return {
     question: selectedQuestion,
@@ -91,18 +88,43 @@ export const getRandomQuestion = (usedQuestions = []) => {
 };
 
 /**
- * Lấy tổng số câu hỏi
+ * Lấy tổng số câu hỏi ứng xử
  * @returns {number} - Số lượng câu hỏi
  */
-export const getTotalQuestions = () => quizQuestions.length;`;
+export const getTotalBehaviorQuestions = () => behaviorQuestions.length;`;
 
     // Ghi file mới
     fs.writeFileSync(filePath, fileContent, 'utf8');
     
-    console.log(`✅ Đã thêm ${newQuestions.length} câu hỏi mới, tổng cộng ${allQuestions.length} câu hỏi`);
+    console.log(`✅ Đã cập nhật ${allQuestions.length} câu hỏi ứng xử trong ${filePath}`);
     
   } catch (error) {
     console.error('❌ Lỗi khi cập nhật file:', error.message);
+    process.exit(1);
+  }
+}
+
+function appendBehaviorFile(newQuestions) {
+  const filePath = path.join(__dirname, 'src', 'data', 'behaviorQuestions.js');
+  
+  try {
+    // Đọc file hiện tại
+    let existingQuestions = [];
+    if (fs.existsSync(filePath)) {
+      const fileContent = fs.readFileSync(filePath, 'utf8');
+      // Parse các câu hỏi hiện có (đơn giản hóa)
+      const existingData = require('./src/data/behaviorQuestions.js');
+      existingQuestions = existingData.behaviorQuestions || [];
+    }
+    
+    // Gộp câu hỏi mới
+    const allQuestions = [...existingQuestions, ...newQuestions];
+    
+    // Ghi đè file với tổng câu hỏi
+    replaceBehaviorFile(allQuestions);
+    
+  } catch (error) {
+    console.error('❌ Lỗi khi thêm câu hỏi:', error.message);
     process.exit(1);
   }
 } 

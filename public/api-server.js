@@ -77,11 +77,79 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === 'POST' && req.url === '/api/update-quiz-questions') {
-    // Thêm câu hỏi mới
+    // Thêm câu hỏi "hỏi ngu" mới
     handleRequest(req, res, 'update-quiz-questions.js');
   } else if (req.method === 'PUT' && req.url === '/api/update-all-questions') {
-    // Cập nhật toàn bộ danh sách (cho edit/delete)
+    // Cập nhật toàn bộ danh sách "hỏi ngu" (cho edit/delete)
     handleRequest(req, res, 'update-all-questions.js');
+  } else if (req.method === 'POST' && req.url === '/api/update-behavior-questions') {
+    // Thêm câu hỏi ứng xử mới
+    handleRequest(req, res, 'update-behavior-questions.js');
+  } else if (req.method === 'PUT' && req.url === '/api/update-all-behavior-questions') {
+    // Cập nhật toàn bộ danh sách ứng xử (cho edit/delete)
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+        const scriptPath = path.join(__dirname, '..', 'update-behavior-questions.js');
+        const child = spawn('node', [scriptPath, 'replace'], { stdio: ['pipe', 'pipe', 'pipe'] });
+        
+        child.stdin.write(JSON.stringify(data));
+        child.stdin.end();
+        
+        let output = '', errorOutput = '';
+        child.stdout.on('data', (data) => { output += data.toString(); });
+        child.stderr.on('data', (data) => { errorOutput += data.toString(); });
+        
+        child.on('close', (code) => {
+          if (code === 0) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, message: 'Cập nhật thành công', output }));
+          } else {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: errorOutput || 'Lỗi khi cập nhật' }));
+          }
+        });
+      } catch (error) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Invalid JSON' }));
+      }
+    });
+  } else if (req.method === 'POST' && req.url === '/api/update-knowledge-questions') {
+    // Thêm câu hỏi kiến thức mới
+    handleRequest(req, res, 'update-knowledge-questions.js');
+  } else if (req.method === 'PUT' && req.url === '/api/update-all-knowledge-questions') {
+    // Cập nhật toàn bộ danh sách kiến thức (cho edit/delete)
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+        const scriptPath = path.join(__dirname, '..', 'update-knowledge-questions.js');
+        const child = spawn('node', [scriptPath, 'replace'], { stdio: ['pipe', 'pipe', 'pipe'] });
+        
+        child.stdin.write(JSON.stringify(data));
+        child.stdin.end();
+        
+        let output = '', errorOutput = '';
+        child.stdout.on('data', (data) => { output += data.toString(); });
+        child.stderr.on('data', (data) => { errorOutput += data.toString(); });
+        
+        child.on('close', (code) => {
+          if (code === 0) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, message: 'Cập nhật thành công', output }));
+          } else {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: errorOutput || 'Lỗi khi cập nhật' }));
+          }
+        });
+      } catch (error) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Invalid JSON' }));
+      }
+    });
   } else {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Not found' }));
@@ -90,7 +158,13 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`🚀 API Server đang chạy tại http://localhost:${PORT}`);
-  console.log(`📝 Endpoint: POST /api/update-quiz-questions`);
+  console.log(`📝 Endpoints:`);
+  console.log(`   POST /api/update-quiz-questions - Thêm câu hỏi "Hỏi Ngu"`);
+  console.log(`   PUT  /api/update-all-questions - Cập nhật toàn bộ "Hỏi Ngu"`);
+  console.log(`   POST /api/update-behavior-questions - Thêm câu hỏi "Ứng Xử"`);
+  console.log(`   PUT  /api/update-all-behavior-questions - Cập nhật toàn bộ "Ứng Xử"`);
+  console.log(`   POST /api/update-knowledge-questions - Thêm câu hỏi "Kiến Thức"`);
+  console.log(`   PUT  /api/update-all-knowledge-questions - Cập nhật toàn bộ "Kiến Thức"`);
 });
 
 module.exports = server; 

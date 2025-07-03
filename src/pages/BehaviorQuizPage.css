@@ -1,0 +1,41 @@
+/* Import base styles từ QuizPage */
+@import './QuizPage.css';
+
+/* Custom styling cho Behavior Quiz */
+.behavior-quiz-page {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+}
+
+.behavior-quiz-page .quiz-screen {
+  background: transparent;
+}
+
+.behavior-quiz-page .game-container {
+  border: 2px solid #48bb78;
+}
+
+.behavior-quiz-page .question-counter {
+  background: #e6fffa;
+  color: #38a169;
+}
+
+.behavior-quiz-page .current-score {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.behavior-quiz-page .question-text {
+  border-left-color: #48bb78;
+}
+
+.behavior-quiz-page .option-letter {
+  color: #38a169;
+  background: #e6fffa;
+}
+
+.behavior-quiz-page .option-button:hover:not(.disabled) {
+  border-color: #48bb78;
+  box-shadow: 0 8px 25px rgba(72, 187, 120, 0.15);
+} 

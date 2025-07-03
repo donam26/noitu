@@ -191,6 +191,16 @@
   color: #495057;
 }
 
+.question-preview {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 10px;
+  border-left: 4px solid #dc3545;
+  margin: 15px 0;
+  font-style: italic;
+  color: #495057;
+}
+
 /* Empty State */
 .empty-state {
   text-align: center;
