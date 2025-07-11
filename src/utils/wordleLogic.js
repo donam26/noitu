@@ -1,4 +1,29 @@
-import { normalize, getRandomTargetWord, isValidWord, analyzeSyllableStructure } from '../data/wordleData';
+// import { normalize, analyzeSyllableStructure } from '../data/wordleData';
+import { words } from '../data/wordsData';
+
+// Hàm normalize để chuyển từ có dấu thành không dấu
+export const normalize = (str) => {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .replace(/\s+/g, "")
+    .toUpperCase();
+};
+
+// Hàm phân tích cấu trúc âm tiết
+export const analyzeSyllableStructure = (originalWord) => {
+  const syllables = originalWord.trim().split(/\s+/);
+  if (syllables.length === 2) {
+    const firstLen = syllables[0].length;
+    const secondLen = syllables[1].length;
+    return `Từ gồm 2 âm tiết: ${firstLen} chữ + ${secondLen} chữ`;
+  } else if (syllables.length === 1) {
+    return `Từ gồm 1 âm tiết: ${syllables[0].length} chữ`;
+  }
+  return `Từ gồm ${syllables.length} âm tiết`;
+};
 
 // Keyboard layout tiếng Việt
 export const VIETNAMESE_KEYBOARD_ROWS = [
@@ -22,6 +47,41 @@ export const GAME_STATUS = {
   LOST: "lost"
 };
 
+// Một số từ mặc định để đảm bảo luôn có từ để chơi
+const DEFAULT_WORDS = [
+  "học sinh",
+  "bàn ghế",
+  "máy tính",
+  "sách vở",
+  "bút chì",
+  "bạn bè",
+  "gia đình",
+  "công việc",
+  "nhà cửa"
+];
+
+// Lấy ngẫu nhiên từ có đúng 7 ký tự khi bỏ dấu
+const getFilteredWords = () => {
+  // Lọc từ thích hợp từ danh sách chính
+  const filtered = words.filter(word => {
+    try {
+      const normalized = normalize(word);
+      return normalized && normalized.length === 7;
+    } catch (e) {
+      console.error("Lỗi khi xử lý từ:", word, e);
+      return false;
+    }
+  });
+  
+  // Nếu không tìm thấy từ nào, sử dụng danh sách mặc định
+  if (!filtered || filtered.length === 0) {
+    console.warn("Không tìm thấy từ phù hợp trong wordsData, sử dụng từ mặc định");
+    return DEFAULT_WORDS.filter(word => normalize(word).length === 7);
+  }
+  
+  return filtered;
+};
+
 // Tạo game state ban đầu
 export const createInitialGameState = () => {
   const wordData = getNewWordData();
@@ -43,9 +103,52 @@ export const createInitialGameState = () => {
 
 // Lấy từ mới để đoán
 export const getNewWordData = () => {
-  const original = getRandomTargetWord();
-  const normalized = normalize(original);
-  return { original, normalized };
+  try {
+    const filteredWords = getFilteredWords();
+    if (!filteredWords || filteredWords.length === 0) {
+      // Fallback nếu vẫn không có từ nào
+      const original = "học sinh";
+      const normalized = "HOCSINH";
+      console.warn("Sử dụng từ fallback:", original);
+      return { original, normalized };
+    }
+    
+    const index = Math.floor(Math.random() * filteredWords.length);
+    const original = filteredWords[index];
+    const normalized = normalize(original);
+    
+    console.log("Đã chọn từ:", original, "->", normalized);
+    return { original, normalized };
+  } catch (e) {
+    console.error("Lỗi khi lấy từ mới:", e);
+    // Fallback an toàn
+    return { 
+      original: "học sinh", 
+      normalized: "HOCSINH" 
+    };
+  }
+};
+
+// Kiểm tra từ có hợp lệ không
+export const isValidWord = (word) => {
+  try {
+    const normalizedInput = normalize(word);
+    if (!normalizedInput || normalizedInput.length !== 7) {
+      return false;
+    }
+    
+    // Lấy danh sách từ đã được lọc
+    const filteredWords = getFilteredWords();
+    
+    // Kiểm tra từ có trong danh sách không
+    return filteredWords.some(validWord => {
+      const normalizedValid = normalize(validWord);
+      return normalizedValid === normalizedInput;
+    });
+  } catch (e) {
+    console.error("Lỗi khi kiểm tra từ:", word, e);
+    return false;
+  }
 };
 
 // Kiểm tra guess và trả về trạng thái của từng chữ cái

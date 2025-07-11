@@ -1,4 +1,4 @@
-import { words } from '../words_perfect_2_syllables';
+import { words } from "../data/wordsData";
 
 /**
  * Lấy âm cuối của từ (syllable cuối)

@@ -30,9 +30,15 @@ const WordScrambleScreen = ({ onBackHome }) => {
   const [modalContent, setModalContent] = useState({});
   const [gameStarted, setGameStarted] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(GAME_CONFIG.TIME_LIMIT);
   
   const inputRef = useRef(null);
   const timerKey = useRef(0);
+
+  // Hàm cập nhật thời gian còn lại từ Timer
+  const handleTimeUpdate = (time) => {
+    setTimeRemaining(time);
+  };
 
   // Khởi tạo game
   useEffect(() => {
@@ -87,8 +93,7 @@ const WordScrambleScreen = ({ onBackHome }) => {
     // Kiểm tra câu trả lời
     if (checkAnswer(originalWord, userAnswer)) {
       // Đúng - tính điểm và chuyển round mới
-      const timeLeft = 30; // Tạm thời, sẽ được truyền từ Timer
-      const roundScore = calculateScore(originalWord, timeLeft, 30);
+      const roundScore = calculateScore(originalWord, timeRemaining, GAME_CONFIG.TIME_LIMIT);
       
       setScore(roundScore);
       setTotalScore(prev => prev + roundScore);
@@ -144,6 +149,7 @@ const WordScrambleScreen = ({ onBackHome }) => {
     setRound(1);
     setIsGameOver(false);
     setShowModal(false);
+    setTimeRemaining(GAME_CONFIG.TIME_LIMIT);
     startNewRound();
   };
 
@@ -172,8 +178,9 @@ const WordScrambleScreen = ({ onBackHome }) => {
         {!isGameOver && (
           <Timer
             key={timerKey.current}
-            timeLimit={GAME_CONFIG.TIME_LIMIT}
+            duration={GAME_CONFIG.TIME_LIMIT}
             onTimeUp={handleTimeUp}
+            onTimeUpdate={handleTimeUpdate}
             isActive={gameStarted && !showModal}
           />
         )}
@@ -261,7 +268,8 @@ const WordScrambleScreen = ({ onBackHome }) => {
           title={modalContent.title}
           message={modalContent.message}
           onClose={handleCloseModal}
-          cancelText="OK"
+          cancelText={isGameOver ? "Chơi lại" : "Tiếp tục"}
+          onCancel={isGameOver ? handlePlayAgain : handleCloseModal}
         />
       </div>
     </div>

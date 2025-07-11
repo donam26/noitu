@@ -33,6 +33,7 @@ const QuizScreen = ({ onBackHome }) => {
   const [gameStarted, setGameStarted] = useState(false);
   const [isAnswered, setIsAnswered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(GAME_CONFIG.TIME_LIMIT);
   
   // Sử dụng custom hook để lấy dữ liệu
   const {
@@ -45,6 +46,11 @@ const QuizScreen = ({ onBackHome }) => {
   
   const timerKey = useRef(0);
   const maxQuestions = 10;
+
+  // Hàm cập nhật thời gian còn lại từ Timer
+  const handleTimeUpdate = (time) => {
+    setTimeRemaining(time);
+  };
 
   // Khởi tạo game
   useEffect(() => {
@@ -74,6 +80,19 @@ const QuizScreen = ({ onBackHome }) => {
       }
       
       const { question } = result;
+      
+      // Kiểm tra câu hỏi và các lựa chọn
+      if (!question || !question.options || !Array.isArray(question.options)) {
+        console.error('Câu hỏi không hợp lệ:', question);
+        setModalContent({
+          title: 'Lỗi',
+          message: 'Dữ liệu câu hỏi không hợp lệ. Vui lòng thử lại sau.',
+          isError: true
+        });
+        setShowModal(true);
+        setIsLoading(false);
+        return;
+      }
       
       // Xáo trộn các lựa chọn
       const { shuffledOptions, newCorrectIndex } = shuffleOptions(
@@ -111,13 +130,13 @@ const QuizScreen = ({ onBackHome }) => {
     setSelectedAnswer(answerIndex);
     setIsAnswered(true);
     
+    // Kiểm tra đáp án và tính điểm
     const isCorrect = checkAnswer(answerIndex, currentCorrectIndex);
-    const timeLeft = 30; // Sẽ được cập nhật từ Timer component
-    const questionScore = isCorrect ? calculateQuizScore(timeLeft, 30) : 0;
     
     if (isCorrect) {
+      // Chỉ cộng 1 điểm cho mỗi câu trả lời đúng
       setCorrectAnswers(prev => prev + 1);
-      setTotalScore(prev => prev + questionScore);
+      setTotalScore(prev => prev + 1);
     }
     
     // Hiển thị kết quả sau 1 giây
@@ -125,13 +144,15 @@ const QuizScreen = ({ onBackHome }) => {
       if (isCorrect) {
         setModalContent({
           title: '🎉 Chính xác!',
-          message: `Tuyệt vời! Bạn được ${questionScore} điểm!\n\n${currentQuestion.explanation || ''}`,
+          message: `Tuyệt vời! Bạn được 1 điểm!\n\n${currentQuestion.explanation || ''}`,
           isSuccess: true
         });
       } else {
+        // Kiểm tra đáp án đúng tồn tại trước khi hiển thị
+        const correctOption = currentOptions[currentCorrectIndex];
         setModalContent({
           title: '❌ Sai rồi!',
-          message: `Đáp án đúng là: "${currentOptions[currentCorrectIndex]}"\n\n${currentQuestion.explanation || ''}`,
+          message: `Đáp án đúng là: "${correctOption || 'Không xác định'}"\n\n${currentQuestion.explanation || ''}`,
           isSuccess: false
         });
       }
@@ -159,10 +180,14 @@ const QuizScreen = ({ onBackHome }) => {
     if (isAnswered || isGameOver) return;
     
     setIsAnswered(true);
+    setTimeRemaining(0);
+    
+    // Kiểm tra đáp án đúng tồn tại trước khi hiển thị
+    const correctOption = currentOptions[currentCorrectIndex];
     
     setModalContent({
       title: '⏰ Hết thời gian!',
-      message: `Đáp án đúng là: "${currentOptions[currentCorrectIndex]}"\n\n${currentQuestion.explanation || ''}`,
+      message: `Đáp án đúng là: "${correctOption || 'Không xác định'}"\n\n${currentQuestion?.explanation || ''}`,
       isSuccess: false
     });
     setShowModal(true);
@@ -184,12 +209,15 @@ const QuizScreen = ({ onBackHome }) => {
    */
   const endGame = () => {
     setIsGameOver(true);
-    const accuracy = getAccuracyPercentage(correctAnswers, questionNumber - 1);
+    
+    // Đảm bảo không chia cho 0
+    const totalQuestions = Math.max(1, questionNumber - 1);
+    const accuracy = getAccuracyPercentage(correctAnswers, totalQuestions);
     const message = getPerformanceMessage(accuracy);
     
     setModalContent({
       title: '🏁 Kết thúc game!',
-      message: `${message}\n\nKết quả: ${correctAnswers}/${questionNumber - 1} câu đúng\nĐộ chính xác: ${accuracy}%\nTổng điểm: ${totalScore}`,
+      message: `${message}\n\nKết quả: ${correctAnswers}/${totalQuestions} câu đúng\nĐộ chính xác: ${accuracy}%\nTổng điểm: ${totalScore}`,
       isGameOver: true
     });
     setShowModal(true);
@@ -213,6 +241,7 @@ const QuizScreen = ({ onBackHome }) => {
     setIsGameOver(false);
     setShowModal(false);
     setIsAnswered(false);
+    setTimeRemaining(GAME_CONFIG.TIME_LIMIT);
     loadNewQuestion();
   };
 
@@ -273,11 +302,12 @@ const QuizScreen = ({ onBackHome }) => {
         </div>
 
         {/* Timer */}
-        {!isGameOver && !isAnswered && (
+        {!isGameOver && (
           <Timer
             key={timerKey.current}
-            timeLimit={GAME_CONFIG.TIME_LIMIT}
+            duration={GAME_CONFIG.TIME_LIMIT}
             onTimeUp={handleTimeUp}
+            onTimeUpdate={handleTimeUpdate}
             isActive={gameStarted && !showModal && !isAnswered}
           />
         )}
@@ -285,7 +315,7 @@ const QuizScreen = ({ onBackHome }) => {
         {/* Câu hỏi */}
         <div className="question-section">
           <div className="question-text">
-            {currentQuestion.question}
+            {currentQuestion.question || "Không có câu hỏi"}
           </div>
         </div>
 
@@ -305,7 +335,7 @@ const QuizScreen = ({ onBackHome }) => {
               <span className="option-letter">
                 {String.fromCharCode(65 + index)}.
               </span>
-              {option}
+              {option || "Không có lựa chọn"}
             </button>
           ))}
         </div>
@@ -331,7 +361,7 @@ const QuizScreen = ({ onBackHome }) => {
           onClose={modalContent.isGameOver ? null : handleCloseModal}
           confirmText={modalContent.isGameOver ? "Chơi lại" : null}
           onConfirm={modalContent.isGameOver ? handlePlayAgain : null}
-          cancelText={modalContent.isGameOver ? "Về trang chủ" : "OK"}
+          cancelText={modalContent.isGameOver ? "Về trang chủ" : "Tiếp tục"}
           onCancel={modalContent.isGameOver ? onBackHome : handleCloseModal}
         />
       </div>

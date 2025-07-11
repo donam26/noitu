@@ -12,7 +12,7 @@ import './Modal.css';
  * @param {Function} props.onSubmit - Callback khi xác nhận
  * @param {string} props.confirmText - Nội dung nút xác nhận (alias cho submitText)
  * @param {string} props.submitText - Nội dung nút xác nhận (mặc định: "Xác nhận")
- * @param {string} props.cancelText - Nội dung nút hủy (mặc định: "Hủy")
+ * @param {string} props.cancelText - Nội dung nút hủy (mặc định: "Tiếp tục")
  * @param {string} props.submitVariant - Variant của nút xác nhận (mặc định: "primary")
  * @param {boolean} props.show - Hiển thị modal hay không
  * @param {boolean} props.isOpen - Hiển thị modal hay không (alias cho show)
@@ -27,7 +27,7 @@ const Modal = ({
   onSubmit,
   confirmText,
   submitText = "Xác nhận",
-  cancelText = "Hủy",
+  cancelText = "Tiếp tục",
   submitVariant = "primary",
   show = true,
   isOpen

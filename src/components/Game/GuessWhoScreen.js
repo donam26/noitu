@@ -550,7 +550,7 @@ const GuessWhoScreen = ({ onBackHome }) => {
           onClose={handleCloseModal}
           confirmText={modalContent.showContinue ? "Tiếp tục" : null}
           onConfirm={modalContent.showContinue ? handleContinue : null}
-          cancelText={modalContent.isGameOver ? "Chơi lại" : modalContent.showContinue ? "Bỏ qua" : "OK"}
+          cancelText={modalContent.isGameOver ? "Chơi lại" : "Tiếp tục"}
           onCancel={modalContent.isGameOver ? handlePlayAgain : modalContent.showContinue ? handleContinue : handleCloseModal}
         />
       </div>

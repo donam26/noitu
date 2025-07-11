@@ -1,4 +1,4 @@
-import { words } from '../words_perfect_2_syllables';
+import { words } from '../data/wordsData';
 
 /**
  * Lấy từ ngẫu nhiên phù hợp cho game sắp xếp (từ đơn, không có khoảng trắng)

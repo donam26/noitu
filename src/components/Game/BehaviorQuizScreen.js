@@ -15,7 +15,7 @@ import useBehaviorData from '../../hooks/useBehaviorData';
 import './QuizScreen.css';
 
 /**
- * Component BehaviorQuizScreen - Màn hình chơi game Vua Ứng Xử
+ * Component BehaviorQuizScreen - Màn hình chơi game Vua ứng xử
  * @param {Object} props - Props của component
  * @param {Function} props.onBackHome - Callback khi quay về trang chủ
  */
@@ -33,8 +33,9 @@ const BehaviorQuizScreen = ({ onBackHome }) => {
   const [gameStarted, setGameStarted] = useState(false);
   const [isAnswered, setIsAnswered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(GAME_CONFIG.TIME_LIMIT);
   
-  // Sử dụng custom hook
+  // Sử dụng custom hook để lấy dữ liệu
   const {
     loading,
     error,
@@ -45,6 +46,11 @@ const BehaviorQuizScreen = ({ onBackHome }) => {
   
   const timerKey = useRef(0);
   const maxQuestions = 10;
+
+  // Hàm cập nhật thời gian còn lại từ Timer
+  const handleTimeUpdate = (time) => {
+    setTimeRemaining(time);
+  };
 
   // Khởi tạo game
   useEffect(() => {
@@ -57,8 +63,7 @@ const BehaviorQuizScreen = ({ onBackHome }) => {
   const loadNewQuestion = async () => {
     setIsLoading(true);
     
-    // Kiểm tra game kết thúc
-    if (isBehaviorGameFinished(usedQuestions, maxQuestions)) {
+    if (questionNumber > maxQuestions) {
       endGame();
       setIsLoading(false);
       return;
@@ -75,6 +80,13 @@ const BehaviorQuizScreen = ({ onBackHome }) => {
       
       const { question } = result;
       
+      if (!question || !question.options || !Array.isArray(question.options)) {
+        console.error('Câu hỏi không hợp lệ:', question);
+        endGame();
+        setIsLoading(false);
+        return;
+      }
+      
       // Xáo trộn các lựa chọn
       const { shuffledOptions, newCorrectIndex } = shuffleOptions(
         question.options, 
@@ -90,13 +102,7 @@ const BehaviorQuizScreen = ({ onBackHome }) => {
       timerKey.current += 1; // Reset timer
     } catch (err) {
       console.error('Lỗi khi tải câu hỏi mới:', err);
-      
-      setModalContent({
-        title: 'Lỗi',
-        message: 'Không thể tải câu hỏi. Vui lòng thử lại sau.',
-        isError: true
-      });
-      setShowModal(true);
+      endGame();
     } finally {
       setIsLoading(false);
     }
@@ -112,8 +118,7 @@ const BehaviorQuizScreen = ({ onBackHome }) => {
     setIsAnswered(true);
     
     const isCorrect = checkAnswer(answerIndex, currentCorrectIndex);
-    const timeLeft = 30; // Sẽ được cập nhật từ Timer component
-    const questionScore = isCorrect ? calculateBehaviorScore(timeLeft, 30) : 0;
+    const questionScore = isCorrect ? calculateBehaviorScore(timeRemaining, GAME_CONFIG.TIME_LIMIT) : 0;
     
     if (isCorrect) {
       setCorrectAnswers(prev => prev + 1);
@@ -286,8 +291,9 @@ const BehaviorQuizScreen = ({ onBackHome }) => {
         <div className="timer-section">
           <Timer
             key={timerKey.current}
-            duration={30}
+            duration={GAME_CONFIG.TIME_LIMIT}
             onTimeUp={handleTimeUp}
+            onTimeUpdate={handleTimeUpdate}
             isActive={gameStarted && !isAnswered && !isGameOver}
           />
         </div>

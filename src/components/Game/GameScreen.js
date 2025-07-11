@@ -25,9 +25,15 @@ const GameScreen = ({ onBackHome }) => {
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState({});
   const [gameStarted, setGameStarted] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(GAME_CONFIG.TIME_LIMIT);
   
   const inputRef = useRef(null);
   const timerKey = useRef(0);
+
+  // Hàm cập nhật thời gian còn lại từ Timer
+  const handleTimeUpdate = (time) => {
+    setTimeRemaining(time);
+  };
 
   // Khởi tạo game
   useEffect(() => {
@@ -49,6 +55,7 @@ const GameScreen = ({ onBackHome }) => {
     setCurrentWord(newWord);
     setInputValue('');
     setGameStarted(true);
+    setTimeRemaining(GAME_CONFIG.TIME_LIMIT);
     timerKey.current += 1; // Reset timer
   };
 
@@ -101,6 +108,7 @@ const GameScreen = ({ onBackHome }) => {
     setScore(prev => prev + 1);
     setCurrentWord(userWord);
     setInputValue('');
+    setTimeRemaining(GAME_CONFIG.TIME_LIMIT);
     timerKey.current += 1; // Reset timer cho round mới
   };
 
@@ -121,6 +129,7 @@ const GameScreen = ({ onBackHome }) => {
     setScore(0);
     setIsGameOver(false);
     setShowModal(false);
+    setTimeRemaining(GAME_CONFIG.TIME_LIMIT);
     startNewRound();
   };
 
@@ -148,8 +157,9 @@ const GameScreen = ({ onBackHome }) => {
         {!isGameOver && (
           <Timer
             key={timerKey.current}
-            timeLimit={GAME_CONFIG.TIME_LIMIT}
+            duration={GAME_CONFIG.TIME_LIMIT}
             onTimeUp={handleTimeUp}
+            onTimeUpdate={handleTimeUpdate}
             isActive={gameStarted && !showModal}
           />
         )}
@@ -210,7 +220,7 @@ const GameScreen = ({ onBackHome }) => {
           title={modalContent.title}
           message={modalContent.message}
           onClose={handleCloseModal}
-          cancelText="OK"
+          cancelText="Tiếp tục"
         />
       </div>
     </div>
