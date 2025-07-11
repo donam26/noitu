@@ -7,10 +7,12 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
+    "axios": "^1.6.7",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2",
     "react-scripts": "5.0.1",
+    "react-toastify": "^11.0.5",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
@@ -19,7 +21,7 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "dev": "node start-dev.js",
-    "api": "node public/api-server.js"
+    "setup": "cd game-admin-server && npm install && node setup.js"
   },
   "eslintConfig": {
     "extends": [
@@ -38,5 +40,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
   }
 }

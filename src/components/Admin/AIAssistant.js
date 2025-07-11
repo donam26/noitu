@@ -110,10 +110,7 @@ const AIAssistant = ({ onAddQuestions }) => {
   const generateQuestions = async (useCustom = false) => {
     const prompt = useCustom && customPrompt.trim() ? customPrompt : DEFAULT_PROMPTS[questionType];
     
-    if (useCustom && !customPrompt.trim()) {
-      alert('⚠️ Vui lòng nhập yêu cầu tùy chỉnh!');
-      return;
-    }
+   
 
     setIsGenerating(true);
 

@@ -4,6 +4,7 @@ import BehaviorQuizManager from './BehaviorQuizManager';
 import KnowledgeQuizManager from './KnowledgeQuizManager';
 import AIAssistant from './AIAssistant';
 import Button from '../common/Button';
+import { showSuccess, showError } from '../../utils/toast';
 import './AdminPanel.css';
 
 /**
@@ -64,7 +65,7 @@ const AdminPanel = ({ onLogout }) => {
         console.log(`📡 Đã emit event ${eventName}`);
         
         // Thông báo thành công
-        alert(`✅ Đã thêm ${newQuestions.length} câu hỏi vào file ${fileName}!`);
+        showSuccess(`✅ Đã thêm ${newQuestions.length} câu hỏi vào file ${fileName}!`);
         return true;
       } else {
         const error = await response.json();
@@ -72,7 +73,7 @@ const AdminPanel = ({ onLogout }) => {
       }
     } catch (error) {
       console.error('❌ Lỗi khi cập nhật file:', error);
-      alert(`❌ Lỗi: ${error.message}\n\nVui lòng kiểm tra API server có đang chạy không.`);
+      showError(`❌ Lỗi: ${error.message}\n\nVui lòng kiểm tra API server có đang chạy không.`);
       return false;
     }
   };
@@ -99,7 +100,9 @@ const AdminPanel = ({ onLogout }) => {
       }
     };
     loadCounts();
-  }, []);
+    
+    // Chỉ load một lần khi component mount
+  }, []); // Empty dependency array
 
   const tabs = [
     {

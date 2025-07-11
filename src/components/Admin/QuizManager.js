@@ -1,56 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { quizQuestions } from '../../data/quizQuestions';
+import axios from 'axios';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
+import { showSuccess, showError, showInfo } from '../../utils/toast';
+import { getAuthHeaders } from '../../utils/auth';
 import './QuizManager.css';
 
 /**
- * Component QuizManager - Quản lý CRUD câu hỏi quiz
+ * Component QuizManager - Quản lý CRUD câu hỏi Hỏi Ngu
  */
 const QuizManager = () => {
   const [questions, setQuestions] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [editingQuestion, setEditingQuestion] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [questionToDelete, setQuestionToDelete] = useState(null);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalQuestions, setTotalQuestions] = useState(0);
 
-  const itemsPerPage = 5;
-
-  // Khởi tạo dữ liệu từ file gốc
-  useEffect(() => {
-    const loadQuestions = () => {
-      // Import lại module để lấy dữ liệu mới nhất
-      import('../../data/quizQuestions').then(module => {
-        const questions = module.quizQuestions;
-        console.log(`📚 Load từ file gốc: ${questions.length} câu hỏi`);
-        setQuestions(questions.map((q, index) => ({ ...q, id: index })));
-      }).catch(error => {
-        console.error('Error loading questions:', error);
-        setQuestions(quizQuestions.map((q, index) => ({ ...q, id: index })));
-      });
-    };
-
-    loadQuestions();
-
-    // Lắng nghe sự kiện từ AI Assistant
-    const handleQuestionsUpdated = () => {
-      console.log('🔄 Nhận được event questionsUpdated, đang reload module...');
-      // Reload trang để import lại module đã được cập nhật
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    };
-
-    window.addEventListener('questionsUpdated', handleQuestionsUpdated);
-
-    return () => {
-      window.removeEventListener('questionsUpdated', handleQuestionsUpdated);
-    };
-  }, []);
-
-  // Form state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  
   const [formData, setFormData] = useState({
     question: '',
     options: ['', '', '', ''],
@@ -58,260 +29,238 @@ const QuizManager = () => {
     explanation: ''
   });
 
-  // Lọc câu hỏi theo search
-  const filteredQuestions = questions.filter(q =>
-    q.question.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Pagination
-  const totalPages = Math.ceil(filteredQuestions.length / itemsPerPage);
-  const paginatedQuestions = filteredQuestions.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  // Reset form
-  const resetForm = () => {
+  const itemsPerPage = 10;
+  
+  // Fetch danh sách câu hỏi từ API
+  const fetchQuestions = async (signal) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get('http://localhost:3001/api/quiz', {
+        params: {
+          page: currentPage,
+          limit: itemsPerPage
+        },
+        ...getAuthHeaders(),
+        signal: signal // Pass the signal to axios
+      });
+      
+      if (response.data.success) {
+        const { questions, pagination } = response.data.data;
+        setQuestions(questions);
+        setTotalQuestions(pagination.total);
+        setTotalPages(pagination.pages);
+      } else {
+        setError(response.data.message);
+      }
+    } catch (error) {
+      if (!axios.isCancel(error)) {
+        console.error('Lỗi khi tải câu hỏi:', error);
+        setError('Không thể kết nối đến server');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Load câu hỏi khi component mount hoặc khi trang thay đổi
+  useEffect(() => {
+    const controller = new AbortController();
+    
+    const loadData = async () => {
+      fetchQuestions(controller.signal);
+    };
+    
+    loadData();
+    
+    // Cleanup function để hủy request khi component unmount
+    return () => {
+      controller.abort();
+    };
+  }, [currentPage]); // Chỉ gọi lại khi currentPage thay đổi
+  
+  // Xử lý thay đổi form
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    
+    if (name === 'option0' || name === 'option1' || name === 'option2' || name === 'option3') {
+      const index = parseInt(name.replace('option', ''));
+      const newOptions = [...formData.options];
+      newOptions[index] = value;
+      
+      setFormData({
+        ...formData,
+        options: newOptions
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: name === 'correctAnswer' ? parseInt(value) : value
+      });
+    }
+  };
+  
+  // Xử lý mở modal thêm câu hỏi
+  const handleOpenAddModal = () => {
     setFormData({
       question: '',
       options: ['', '', '', ''],
       correctAnswer: 0,
       explanation: ''
     });
-    setEditingQuestion(null);
+    setShowAddModal(true);
   };
 
-  // Mở modal thêm câu hỏi
-  const handleAdd = () => {
-    resetForm();
-    setShowModal(true);
+  // Xử lý mở modal chỉnh sửa câu hỏi
+  const handleOpenEditModal = (question) => {
+    setCurrentQuestion(question);
+    setFormData({
+      question: question.question,
+      options: question.options,
+      correctAnswer: question.correct_answer,
+      explanation: question.explanation || ''
+    });
+    setShowEditModal(true);
   };
 
-  // Mở modal sửa câu hỏi
-  const handleEdit = (question) => {
-    setFormData({ ...question });
-    setEditingQuestion(question);
-    setShowModal(true);
+  // Xử lý mở modal xóa câu hỏi
+  const handleOpenDeleteModal = (question) => {
+    setCurrentQuestion(question);
+    setShowDeleteModal(true);
   };
 
-  // Xóa câu hỏi
-  const handleDelete = (question) => {
-    setQuestionToDelete(question);
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDelete = async () => {
+  // Xử lý thêm câu hỏi mới
+  const handleAddQuestion = async () => {
     try {
-      // Lọc bỏ câu hỏi cần xóa
-      const updatedQuestions = questions.filter(q => q.id !== questionToDelete.id);
-      
-      // Chuẩn bị dữ liệu để gửi API
-      const questionsData = updatedQuestions.map(({ id, ...q }) => q);
-      
-      // Gọi API cập nhật toàn bộ file
-      const response = await fetch('http://localhost:3001/api/update-all-questions', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(questionsData)
-      });
-
-      if (response.ok) {
-        console.log('✅ Đã xóa câu hỏi khỏi file thành công');
-        
-        // Cập nhật state
-        setQuestions(updatedQuestions);
-        
-        // Emit event để reload
-        window.dispatchEvent(new CustomEvent('questionsUpdated'));
-        
-      } else {
-        throw new Error('Lỗi khi xóa câu hỏi');
-      }
-    } catch (error) {
-      console.error('❌ Lỗi:', error);
-      alert(`❌ Không thể xóa: ${error.message}`);
-    }
-    
-    setShowDeleteConfirm(false);
-    setQuestionToDelete(null);
-  };
-
-  // Lưu câu hỏi
-  const handleSave = async () => {
-    if (!formData.question.trim() || formData.options.some(opt => !opt.trim())) {
-      alert('Vui lòng điền đầy đủ thông tin!');
-      return;
-    }
-
-    if (editingQuestion) {
-      // Cập nhật câu hỏi hiện có
-      try {
-        const updatedQuestions = questions.map(q =>
-          q.id === editingQuestion.id ? { ...formData, id: editingQuestion.id } : q
-        );
-        
-        // Chuẩn bị dữ liệu để gửi API
-        const questionsData = updatedQuestions.map(({ id, ...q }) => q);
-        
-        // Gọi API cập nhật toàn bộ file
-        const response = await fetch('http://localhost:3001/api/update-all-questions', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(questionsData)
-        });
-
-        if (response.ok) {
-          console.log('✅ Đã cập nhật câu hỏi trong file thành công');
-          
-          // Cập nhật state
-          setQuestions(updatedQuestions);
-          
-          // Emit event để reload
-          window.dispatchEvent(new CustomEvent('questionsUpdated'));
-          
-          alert('✅ Đã cập nhật câu hỏi trong file quizQuestions.js!');
-        } else {
-          throw new Error('Lỗi khi cập nhật câu hỏi');
-        }
-      } catch (error) {
-        console.error('❌ Lỗi:', error);
-        alert(`❌ Không thể cập nhật: ${error.message}`);
+      if (!formData.question || formData.options.some(opt => !opt)) {
+        showError('Vui lòng nhập đầy đủ câu hỏi và các phương án trả lời');
         return;
       }
-    } else {
-      // Thêm câu hỏi mới vào file
-      const newQuestionData = {
+      
+      const response = await axios.post(
+        'http://localhost:3001/api/quiz',
+        {
+          question: formData.question,
+          options: formData.options,
+          correctAnswer: formData.correctAnswer,
+          explanation: formData.explanation
+        },
+        getAuthHeaders()
+      );
+
+      if (response.data.success) {
+        showSuccess('Thêm câu hỏi thành công');
+        setShowAddModal(false);
+        fetchQuestions();
+      } else {
+        showError('Lỗi khi thêm câu hỏi: ' + response.data.message);
+      }
+    } catch (error) {
+      console.error('Lỗi khi thêm câu hỏi:', error);
+      showError('Lỗi kết nối đến server');
+    }
+  };
+
+  // Xử lý cập nhật câu hỏi
+  const handleUpdateQuestion = async () => {
+    try {
+      if (!formData.question || formData.options.some(opt => !opt)) {
+        showError('Vui lòng nhập đầy đủ câu hỏi và các phương án trả lời');
+        return;
+      }
+      
+      const response = await axios.put(
+        `http://localhost:3001/api/quiz/${currentQuestion.id}`,
+        {
         question: formData.question,
         options: formData.options,
         correctAnswer: formData.correctAnswer,
         explanation: formData.explanation
-      };
+        },
+        getAuthHeaders()
+      );
 
-      try {
-        const response = await fetch('http://localhost:3001/api/update-quiz-questions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify([newQuestionData])
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          console.log('✅ Đã thêm câu hỏi vào file thành công');
-          
-          // Cập nhật state và reload
-          const newId = Math.max(...questions.map(q => q.id), -1) + 1;
-          const updatedQuestions = [...questions, { ...formData, id: newId }];
-          setQuestions(updatedQuestions);
-          
-          // Emit event để reload
-          window.dispatchEvent(new CustomEvent('questionsUpdated'));
-          
-          alert('✅ Đã thêm câu hỏi vào file quizQuestions.js!');
+      if (response.data.success) {
+        showSuccess('Cập nhật câu hỏi thành công');
+        setShowEditModal(false);
+        fetchQuestions();
         } else {
-          throw new Error('Lỗi khi thêm câu hỏi');
+        showError('Lỗi khi cập nhật câu hỏi: ' + response.data.message);
         }
       } catch (error) {
-        console.error('❌ Lỗi:', error);
-        alert(`❌ Không thể lưu vào file: ${error.message}`);
-        return;
+      console.error('Lỗi khi cập nhật câu hỏi:', error);
+      showError('Lỗi kết nối đến server');
       }
+  };
+
+  // Xử lý xóa câu hỏi
+  const handleDeleteQuestion = async () => {
+    try {
+      const response = await axios.delete(
+        `http://localhost:3001/api/quiz/${currentQuestion.id}`,
+        getAuthHeaders()
+      );
+      
+      if (response.data.success) {
+        showSuccess('Xóa câu hỏi thành công');
+        setShowDeleteModal(false);
+        fetchQuestions();
+      } else {
+        showError('Lỗi khi xóa câu hỏi: ' + response.data.message);
+      }
+    } catch (error) {
+      console.error('Lỗi khi xóa câu hỏi:', error);
+      showError('Lỗi kết nối đến server');
     }
-
-    setShowModal(false);
-    resetForm();
-  };
-
-  // Cập nhật option
-  const updateOption = (index, value) => {
-    const newOptions = [...formData.options];
-    newOptions[index] = value;
-    setFormData({ ...formData, options: newOptions });
-  };
-
-  // Export dữ liệu
-  const handleExport = () => {
-    const dataToExport = questions.map(({ id, ...q }) => q);
-    const dataStr = JSON.stringify(dataToExport, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'quiz_questions.json';
-    link.click();
   };
 
   return (
     <div className="quiz-manager">
       <div className="quiz-header">
         <div className="quiz-title">
-          <h2>📝 Quản lý Câu hỏi ngu</h2>
-          <p>Tổng số: {questions.length} câu hỏi</p>
+          <h2>📝 Quản lý câu hỏi "Hỏi Ngu"</h2>
+          <p>Tổng số câu hỏi: {totalQuestions}</p>
         </div>
         <div className="quiz-actions">
-          <Button
-            variant="secondary"
-            onClick={handleExport}
-            className="export-btn"
-          >
-            📥 Export JSON
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleAdd}
-            className="add-btn"
-          >
+          <Button onClick={handleOpenAddModal} className="add-btn">
             ➕ Thêm câu hỏi
           </Button>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="search-section">
-        <input
-          type="text"
-          placeholder="🔍 Tìm kiếm câu hỏi..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="search-input"
-        />
+      {loading ? (
+        <div className="loading">Đang tải...</div>
+      ) : error ? (
+        <div className="error">{error}</div>
+      ) : (
+        <>
+          <div className="questions-list">
+            {questions.length === 0 ? (
+              <div className="empty-state">
+                <p>Chưa có câu hỏi nào. Hãy thêm câu hỏi mới!</p>
       </div>
-
-      {/* Questions List */}
-      <div className="questions-list">
-        {paginatedQuestions.length > 0 ? (
-          paginatedQuestions.map((question, index) => (
+            ) : (
+              questions.map((question, index) => (
             <div key={question.id} className="question-card">
               <div className="question-header">
-                <div className="question-number">
-                  #{(currentPage - 1) * itemsPerPage + index + 1}
-                </div>
+                    <span className="question-number">Câu hỏi #{question.id}</span>
                 <div className="question-actions">
                   <button
                     className="edit-btn"
-                    onClick={() => handleEdit(question)}
-                    title="Chỉnh sửa"
+                        onClick={() => handleOpenEditModal(question)}
+                        title="Sửa câu hỏi"
                   >
                     ✏️
                   </button>
                   <button
                     className="delete-btn"
-                    onClick={() => handleDelete(question)}
-                    title="Xóa"
+                        onClick={() => handleOpenDeleteModal(question)}
+                        title="Xóa câu hỏi"
                   >
                     🗑️
                   </button>
                 </div>
               </div>
-
               <div className="question-content">
                 <h4>{question.question}</h4>
                 <div className="options-grid">
@@ -319,14 +268,14 @@ const QuizManager = () => {
                     <div
                       key={optIndex}
                       className={`option-item ${
-                        optIndex === question.correctAnswer ? 'correct' : ''
+                            optIndex === question.correct_answer ? "correct" : ""
                       }`}
                     >
                       <span className="option-letter">
-                        {String.fromCharCode(65 + optIndex)}.
+                            {String.fromCharCode(65 + optIndex)}
                       </span>
                       <span className="option-text">{option}</span>
-                      {optIndex === question.correctAnswer && (
+                          {optIndex === question.correct_answer && (
                         <span className="correct-badge">✓</span>
                       )}
                     </div>
@@ -334,134 +283,156 @@ const QuizManager = () => {
                 </div>
                 {question.explanation && (
                   <div className="explanation">
-                    <strong>💡 Giải thích:</strong> {question.explanation}
+                        <strong>Giải thích:</strong> {question.explanation}
                   </div>
                 )}
               </div>
             </div>
           ))
-        ) : (
-          <div className="empty-state">
-            <p>🔍 Không tìm thấy câu hỏi nào</p>
-          </div>
         )}
       </div>
 
-      {/* Pagination */}
+          {/* Phân trang */}
       {totalPages > 1 && (
         <div className="pagination">
           <Button
             variant="secondary"
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                onClick={() => setCurrentPage(currentPage - 1)}
             disabled={currentPage === 1}
           >
-            ← Trước
+                ← Trang trước
           </Button>
           <span className="page-info">
-            Trang {currentPage} / {totalPages}
+                Trang {currentPage}/{totalPages}
           </span>
           <Button
             variant="secondary"
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                onClick={() => setCurrentPage(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
-            Sau →
+                Trang sau →
           </Button>
         </div>
       )}
+        </>
+      )}
 
-      {/* Add/Edit Modal */}
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="quiz-modal">
-            <div className="modal-header">
-              <h3>
-                {editingQuestion ? '✏️ Chỉnh sửa câu hỏi' : '➕ Thêm câu hỏi mới'}
-              </h3>
-              <button
-                className="close-btn"
-                onClick={() => setShowModal(false)}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="modal-content">
+      {/* Modal thêm câu hỏi */}
+      <Modal
+        isOpen={showAddModal}
+        title="➕ Thêm câu hỏi mới"
+        onClose={() => setShowAddModal(false)}
+        onConfirm={handleAddQuestion}
+        confirmText="Thêm câu hỏi"
+      >
               <div className="form-group">
-                <label>Câu hỏi *</label>
+          <label>Câu hỏi:</label>
                 <textarea
+            name="question"
                   value={formData.question}
-                  onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-                  placeholder="Nhập nội dung câu hỏi..."
-                  rows="3"
-                  required
+            onChange={handleFormChange}
+            placeholder="Nhập câu hỏi..."
+            rows="2"
                 />
               </div>
-
-              <div className="form-group">
-                <label>Các lựa chọn *</label>
                 {formData.options.map((option, index) => (
-                  <div key={index} className="option-input">
-                    <span className="option-prefix">
-                      {String.fromCharCode(65 + index)}.
-                    </span>
+          <div className="form-group" key={index}>
+            <label>
+              Phương án {String.fromCharCode(65 + index)}
+              {index === formData.correctAnswer && " (Đáp án đúng)"}:
+            </label>
+            <div className="option-input">
                     <input
                       type="text"
+                name={`option${index}`}
                       value={option}
-                      onChange={(e) => updateOption(index, e.target.value)}
-                      placeholder={`Lựa chọn ${String.fromCharCode(65 + index)}`}
-                      required
+                onChange={handleFormChange}
+                placeholder={`Nhập phương án ${String.fromCharCode(65 + index)}...`}
                     />
                     <input
                       type="radio"
                       name="correctAnswer"
+                value={index}
                       checked={formData.correctAnswer === index}
-                      onChange={() => setFormData({ ...formData, correctAnswer: index })}
-                      title="Đáp án đúng"
+                onChange={handleFormChange}
                     />
+            </div>
                   </div>
                 ))}
-                <p className="help-text">📌 Chọn radio button bên cạnh đáp án đúng</p>
-              </div>
-
               <div className="form-group">
-                <label>Giải thích (tuỳ chọn)</label>
+          <label>Giải thích (tùy chọn):</label>
                 <textarea
+            name="explanation"
                   value={formData.explanation}
-                  onChange={(e) => setFormData({ ...formData, explanation: e.target.value })}
-                  placeholder="Giải thích tại sao đáp án này đúng..."
+            onChange={handleFormChange}
+            placeholder="Nhập giải thích..."
                   rows="2"
                 />
               </div>
-            </div>
+      </Modal>
 
-            <div className="modal-footer">
-              <Button
-                variant="secondary"
-                onClick={() => setShowModal(false)}
-              >
-                Hủy
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleSave}
-              >
-                {editingQuestion ? 'Cập nhật' : 'Thêm mới'}
-              </Button>
+      {/* Modal sửa câu hỏi */}
+      <Modal
+        isOpen={showEditModal}
+        title="✏️ Sửa câu hỏi"
+        onClose={() => setShowEditModal(false)}
+        onConfirm={handleUpdateQuestion}
+        confirmText="Cập nhật"
+      >
+        <div className="form-group">
+          <label>Câu hỏi:</label>
+          <textarea
+            name="question"
+            value={formData.question}
+            onChange={handleFormChange}
+            placeholder="Nhập câu hỏi..."
+            rows="2"
+          />
+        </div>
+        {formData.options.map((option, index) => (
+          <div className="form-group" key={index}>
+            <label>
+              Phương án {String.fromCharCode(65 + index)}
+              {index === formData.correctAnswer && " (Đáp án đúng)"}:
+            </label>
+            <div className="option-input">
+              <input
+                type="text"
+                name={`option${index}`}
+                value={option}
+                onChange={handleFormChange}
+                placeholder={`Nhập phương án ${String.fromCharCode(65 + index)}...`}
+              />
+              <input
+                type="radio"
+                name="correctAnswer"
+                value={index}
+                checked={formData.correctAnswer === index}
+                onChange={handleFormChange}
+              />
             </div>
           </div>
+        ))}
+        <div className="form-group">
+          <label>Giải thích (tùy chọn):</label>
+          <textarea
+            name="explanation"
+            value={formData.explanation}
+            onChange={handleFormChange}
+            placeholder="Nhập giải thích..."
+            rows="2"
+          />
         </div>
-      )}
+      </Modal>
 
-      {/* Delete Confirmation */}
+      {/* Modal xóa câu hỏi */}
       <Modal
-        isOpen={showDeleteConfirm}
+        isOpen={showDeleteModal}
         title="🗑️ Xác nhận xóa"
-        message={`Bạn có chắc muốn xóa câu hỏi: "${questionToDelete?.question}"?`}
-        onConfirm={confirmDelete}
-        onClose={() => setShowDeleteConfirm(false)}
+        message={`Bạn có chắc chắn muốn xóa câu hỏi "${currentQuestion?.question}"?`}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteQuestion}
         confirmText="Xóa"
-        cancelText="Hủy"
       />
     </div>
   );

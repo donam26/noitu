@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import MainLayout from './components/Layout/MainLayout';
 import HomePage from './pages/HomePage';
 import WordChainPage from './pages/WordChainPage';
@@ -20,6 +22,19 @@ function App() {
   return (
     <Router>
       <div className="App">
+        <ToastContainer 
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+        />
+        
         <Routes>
           {/* Trang chủ */}
           <Route 
@@ -112,10 +127,7 @@ function App() {
           />
           
           {/* Trang admin - không public, không có header/footer */}
-          <Route 
-            path="/admin" 
-            element={<AdminPage />}
-          />
+          <Route path="/admin/*" element={<AdminPage />} />
           
           {/* Route 404 - có thể thêm sau */}
           <Route 
