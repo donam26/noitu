@@ -4,12 +4,16 @@ const authRoutes = require('./authRoutes');
 const quizRoutes = require('./quizRoutes');
 const knowledgeRoutes = require('./knowledgeRoutes');
 const behaviorRoutes = require('./behaviorRoutes');
+const gameRoutes = require('./gameRoutes');
+const questionRoutes = require('./questionRoutes');
 
 // Routes chính
 router.use('/auth', authRoutes);
 router.use('/quiz', quizRoutes);
 router.use('/knowledge', knowledgeRoutes);
 router.use('/behavior', behaviorRoutes);
+router.use('/games', gameRoutes);
+router.use('/questions', questionRoutes);
 
 // Route kiểm tra trạng thái API
 router.get('/health', (req, res) => {

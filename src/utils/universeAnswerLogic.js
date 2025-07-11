@@ -3,13 +3,120 @@
  * Sử dụng AI để trả lời thông minh thay vì data tĩnh
  */
 
-import { 
-  UNIVERSE_SYSTEM_PROMPT, 
-  getSuggestedQuestion,
-  getFallbackAnswer,
-  detectAnswerType,
-  ANSWER_TYPES
-} from '../data/universeAnswerData';
+// KHÔNG import từ file data nữa
+// import { 
+//   UNIVERSE_SYSTEM_PROMPT, 
+//   getSuggestedQuestion,
+//   getFallbackAnswer,
+//   detectAnswerType,
+//   ANSWER_TYPES
+// } from '../data/universeAnswerData';
+
+// Định nghĩa các constants cần thiết thay vì import
+const UNIVERSE_SYSTEM_PROMPT = `Bạn là "Vũ trụ vạn năng", một trò chơi dự đoán tương lai đơn giản cho trẻ em. 
+Khi người chơi đặt câu hỏi, bạn luôn trả lời ngắn gọn với 1-3 câu, theo một trong ba kiểu:
+1. Khẳng định rõ ràng - trả lời có/đúng vậy/chắc chắn... (khi bạn nghĩ câu trả lời là khẳng định)
+2. Phủ định rõ ràng - trả lời không/không đâu/sai rồi... (khi bạn nghĩ câu trả lời là phủ định)
+3. Mơ hồ/không chắc chắn - trả lời có thể/không chắc/tùy... (khi bạn không chắc chắn)
+
+QUAN TRỌNG: Luôn trả lời dưới 30 từ, giọng điệu vui vẻ, thân thiện và thần bí. Đây là trò chơi cho trẻ em nên đảm bảo nội dung phù hợp. Trả lời bằng tiếng Việt.`;
+
+// Định nghĩa các loại câu trả lời
+const ANSWER_TYPES = {
+  yes: {
+    emoji: '✅',
+    color: '#28a745',
+    keywords: ['có', 'đúng', 'chắc chắn', 'sẽ', 'nên', 'tốt', 'ok', 'được']
+  },
+  no: {
+    emoji: '❌',
+    color: '#dc3545',
+    keywords: ['không', 'chưa', 'đừng', 'sai', 'không nên', 'chẳng', 'sẽ không']
+  },
+  maybe: {
+    emoji: '❓',
+    color: '#ffc107',
+    keywords: ['có thể', 'không chắc', 'tùy', 'còn tùy', 'phụ thuộc', 'khó', 'tham khảo']
+  }
+};
+
+/**
+ * Phát hiện loại câu trả lời
+ * @param {string} answer - Câu trả lời cần phân loại
+ * @returns {string} Loại câu trả lời: yes/no/maybe
+ */
+const detectAnswerType = (answer) => {
+  const text = answer.toLowerCase();
+  
+  // Kiểm tra từ khóa yes
+  if (ANSWER_TYPES.yes.keywords.some(keyword => text.includes(keyword))) {
+    return 'yes';
+  }
+  
+  // Kiểm tra từ khóa no
+  if (ANSWER_TYPES.no.keywords.some(keyword => text.includes(keyword))) {
+    return 'no';
+  }
+  
+  // Mặc định là maybe
+  return 'maybe';
+};
+
+/**
+ * Lấy câu trả lời mặc định khi không có API
+ * @returns {Object} Câu trả lời mặc định
+ */
+const getFallbackAnswer = () => {
+  const answers = [
+    {
+      text: "Có thể lắm! Nhưng tương lai luôn thay đổi.",
+      type: "maybe"
+    },
+    {
+      text: "Vũ trụ nói: Có! Điều đó sẽ xảy ra.",
+      type: "yes"
+    },
+    {
+      text: "Không đâu, hãy thử một hướng khác.",
+      type: "no"
+    },
+    {
+      text: "Vũ trụ đang mơ hồ về điều này...",
+      type: "maybe"
+    }
+  ];
+  
+  const randomAnswer = answers[Math.floor(Math.random() * answers.length)];
+  return {
+    text: randomAnswer.text,
+    type: randomAnswer.type,
+    emoji: ANSWER_TYPES[randomAnswer.type].emoji,
+    color: ANSWER_TYPES[randomAnswer.type].color,
+    timestamp: Date.now(),
+    source: 'fallback'
+  };
+};
+
+/**
+ * Gợi ý câu hỏi ngẫu nhiên
+ * @returns {string} Câu hỏi gợi ý
+ */
+const getSuggestedQuestion = () => {
+  const questions = [
+    "Tôi có nên học thêm môn thể thao mới không?",
+    "Ngày mai trời có nắng đẹp không?",
+    "Tôi có nên nói với bạn về ý tưởng của mình?",
+    "Tôi có thể trở thành phi hành gia trong tương lai?",
+    "Có nên ăn kem vào buổi tối nay?",
+    "Tôi có thể học giỏi hơn trong kỳ học tới?",
+    "Bạn thân của tôi có đang nghĩ về tôi không?",
+    "Tôi sẽ đi du lịch nước ngoài năm nay chứ?",
+    "Tôi có thể gặp được thần tượng của mình không?",
+    "Sẽ có điều kỳ diệu xảy ra với tôi trong tuần này?"
+  ];
+  
+  return questions[Math.floor(Math.random() * questions.length)];
+};
 
 // API key từ environment (giống admin)
 const API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
@@ -256,30 +363,32 @@ export const getRandomSuggestedQuestion = () => {
 };
 
 /**
- * Format thời gian hiển thị
+ * Format thời gian người dùng dễ đọc
  * @param {number} timestamp - Timestamp
  * @returns {string} Thời gian đã format
  */
 export const formatTime = (timestamp) => {
   const date = new Date(timestamp);
   const now = new Date();
-  const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+  const diffMs = now - date;
+  const diffMin = Math.floor(diffMs / (1000 * 60));
   
-  if (diffInMinutes < 1) {
+  if (diffMin < 1) {
     return "Vừa xong";
-  } else if (diffInMinutes < 60) {
-    return `${diffInMinutes} phút trước`;
-  } else if (diffInMinutes < 1440) {
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    return `${diffInHours} giờ trước`;
+  } else if (diffMin < 60) {
+    return `${diffMin} phút trước`;
+  } else if (diffMin < 1440) {
+    const diffHours = Math.floor(diffMin / 60);
+    return `${diffHours} giờ trước`;
   } else {
-    return date.toLocaleDateString('vi-VN');
+    const options = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+    return date.toLocaleDateString('vi-VN', options);
   }
 };
 
 /**
- * Kiểm tra xem có API key được cấu hình không
- * @returns {boolean} True nếu có API key
+ * Kiểm tra xem có API key không
+ * @returns {boolean} Có hay không
  */
 export const hasAPIKey = () => {
   return !!API_KEY;

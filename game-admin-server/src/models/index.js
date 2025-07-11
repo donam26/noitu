@@ -4,6 +4,7 @@ const QuizQuestion = require('./QuizQuestion');
 const BehaviorQuestion = require('./BehaviorQuestion');
 const KnowledgeQuestion = require('./KnowledgeQuestion');
 const WordleWord = require('./WordleWord');
+const Question = require('./Question');
 
 // Đảm bảo các model đã được khởi tạo trước khi thiết lập quan hệ
 const models = {
@@ -11,7 +12,8 @@ const models = {
   QuizQuestion,
   BehaviorQuestion,
   KnowledgeQuestion,
-  WordleWord
+  WordleWord,
+  Question
 };
 
 // Thiết lập các mối quan hệ
@@ -30,6 +32,10 @@ models.BehaviorQuestion.belongsTo(models.Admin, { foreignKey: 'created_by' });
 
 models.Admin.hasMany(models.KnowledgeQuestion, { foreignKey: 'created_by' });
 models.KnowledgeQuestion.belongsTo(models.Admin, { foreignKey: 'created_by' });
+
+// Quan hệ cho model Question mới
+models.Admin.hasMany(models.Question, { foreignKey: 'created_by' });
+models.Question.belongsTo(models.Admin, { foreignKey: 'created_by' });
 
 // Hàm để đồng bộ hóa tất cả các model với database
 const syncDatabase = async (force = false) => {

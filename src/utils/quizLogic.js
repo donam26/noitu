@@ -1,4 +1,5 @@
-import { getRandomQuestion, getTotalQuestions } from '../data/quizQuestions';
+// KHÔNG import từ file data nữa
+// import { getRandomQuestion, getTotalQuestions } from '../data/quizQuestions';
 
 /**
  * Kiểm tra đáp án có đúng không
@@ -23,22 +24,14 @@ export const calculateQuizScore = (timeLeft, maxTime) => {
 };
 
 /**
- * Lấy câu hỏi mới cho game
- * @param {Array} usedQuestions - Mảng các câu hỏi đã sử dụng
- * @returns {Object|null} - Câu hỏi mới hoặc null nếu hết câu
- */
-export const getNewQuestion = (usedQuestions) => {
-  return getRandomQuestion(usedQuestions);
-};
-
-/**
  * Kiểm tra game có kết thúc chưa
  * @param {Array} usedQuestions - Mảng các câu hỏi đã sử dụng
  * @param {number} maxQuestions - Số câu hỏi tối đa cho 1 game
+ * @param {number} totalQuestions - Tổng số câu hỏi có sẵn
  * @returns {boolean} - True nếu game kết thúc
  */
-export const isGameFinished = (usedQuestions, maxQuestions = 10) => {
-  return usedQuestions.length >= maxQuestions || usedQuestions.length >= getTotalQuestions();
+export const isGameFinished = (usedQuestions, maxQuestions = 10, totalQuestions = Infinity) => {
+  return usedQuestions.length >= maxQuestions || usedQuestions.length >= totalQuestions;
 };
 
 /**

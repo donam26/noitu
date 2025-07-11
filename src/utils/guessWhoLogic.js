@@ -3,7 +3,8 @@
  * Xử lý các thao tác liên quan đến việc đoán đối tượng qua gợi ý
  */
 
-import { getRandomQuestion, getAllCategories } from '../data/guessWhoData';
+// KHÔNG import từ file data nữa
+// import { getRandomQuestion, getAllCategories } from '../data/guessWhoData';
 
 /**
  * Chuẩn hóa chuỗi để so sánh (bỏ dấu, lowercase, trim)
@@ -161,22 +162,14 @@ export const calculateScore = (hintsUsed, isCorrect) => {
 };
 
 /**
- * Lấy câu đố mới cho game
- * @param {Array} usedQuestionIds - Mảng ID các câu đã chơi
- * @returns {Object|null} Câu đố mới hoặc null nếu hết câu
- */
-export const getNewGuessWhoQuestion = (usedQuestionIds = []) => {
-  return getRandomQuestion(usedQuestionIds);
-};
-
-/**
  * Kiểm tra xem game đã kết thúc chưa
  * @param {Array} usedQuestionIds - Mảng ID các câu đã chơi
  * @param {number} maxQuestions - Số câu tối đa
+ * @param {number} totalQuestions - Tổng số câu có sẵn
  * @returns {boolean} Game đã kết thúc hay chưa
  */
-export const isGameFinished = (usedQuestionIds, maxQuestions) => {
-  return usedQuestionIds.length >= maxQuestions;
+export const isGameFinished = (usedQuestionIds, maxQuestions, totalQuestions = Infinity) => {
+  return usedQuestionIds.length >= maxQuestions || usedQuestionIds.length >= totalQuestions;
 };
 
 /**
@@ -261,23 +254,24 @@ export const getGameStats = () => {
 };
 
 /**
- * Cập nhật thống kê theo category
- * @param {Object} existingCategoryStats - Thống kê cũ theo category
- * @param {Object} newCategoryResults - Kết quả mới theo category
- * @returns {Object} Thống kê đã cập nhật
+ * Cập nhật thống kê theo danh mục
+ * @param {Object} existingCategoryStats - Thống kê danh mục hiện tại
+ * @param {Object} newCategoryResults - Kết quả mới theo danh mục
+ * @returns {Object} Thống kê danh mục đã cập nhật
  */
 const updateCategoryStats = (existingCategoryStats, newCategoryResults) => {
-  const updated = { ...existingCategoryStats };
+  const updatedStats = { ...existingCategoryStats };
   
   Object.keys(newCategoryResults).forEach(category => {
-    if (!updated[category]) {
-      updated[category] = { correct: 0, total: 0 };
+    const newResult = newCategoryResults[category];
+    if (!updatedStats[category]) {
+      updatedStats[category] = { correct: 0, total: 0 };
     }
-    updated[category].correct += newCategoryResults[category].correct;
-    updated[category].total += newCategoryResults[category].total;
+    updatedStats[category].correct += newResult.correct || 0;
+    updatedStats[category].total += newResult.total || 0;
   });
   
-  return updated;
+  return updatedStats;
 };
 
 /**
@@ -292,26 +286,29 @@ export const clearGameStats = () => {
 };
 
 /**
- * Format thời gian hiển thị
+ * Format thời gian đã chơi lần cuối
  * @param {number} timestamp - Timestamp
  * @returns {string} Thời gian đã format
  */
 export const formatLastPlayed = (timestamp) => {
-  if (!timestamp) return 'Chưa từng chơi';
+  if (!timestamp) return 'Chưa có dữ liệu';
   
   const date = new Date(timestamp);
   const now = new Date();
-  const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+  const diffMs = now - date;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
   
-  if (diffInMinutes < 1) {
-    return "Vừa xong";
-  } else if (diffInMinutes < 60) {
-    return `${diffInMinutes} phút trước`;
-  } else if (diffInMinutes < 1440) {
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    return `${diffInHours} giờ trước`;
+  if (diffDay > 0) {
+    return `${diffDay} ngày trước`;
+  } else if (diffHour > 0) {
+    return `${diffHour} giờ trước`;
+  } else if (diffMin > 0) {
+    return `${diffMin} phút trước`;
   } else {
-    return date.toLocaleDateString('vi-VN');
+    return 'Vừa xong';
   }
 };
 
@@ -319,55 +316,65 @@ export const formatLastPlayed = (timestamp) => {
  * Lấy gợi ý tiếp theo
  * @param {Array} hints - Mảng các gợi ý
  * @param {number} currentHintIndex - Index gợi ý hiện tại
- * @returns {string|null} Gợi ý tiếp theo hoặc null
+ * @returns {Object} Gợi ý tiếp theo và index
  */
 export const getNextHint = (hints, currentHintIndex) => {
-  if (currentHintIndex >= hints.length - 1) {
-    return null; // Hết gợi ý
+  if (!hints || hints.length === 0) {
+    return { hint: 'Không có gợi ý nào khả dụng', index: -1 };
   }
   
-  return hints[currentHintIndex + 1];
+  const nextIndex = currentHintIndex + 1;
+  if (nextIndex >= hints.length) {
+    return { hint: 'Đã hết gợi ý', index: currentHintIndex };
+  }
+  
+  return {
+    hint: hints[nextIndex],
+    index: nextIndex
+  };
 };
 
 /**
- * Lấy danh sách các loại category
- * @returns {Array} Mảng categories
- */
-export const getCategories = () => {
-  return getAllCategories();
-};
-
-/**
- * Tạo gợi ý cho người chơi dựa trên câu trả lời gần đúng
+ * Tạo gợi ý từ câu trả lời của người chơi
  * @param {string} answer - Đáp án đúng
  * @param {string} guess - Câu trả lời của người chơi
- * @returns {string} Gợi ý
+ * @returns {string} Gợi ý được tạo
  */
 export const generateHintFromGuess = (answer, guess) => {
   const normalizedAnswer = normalizeString(answer);
   const normalizedGuess = normalizeString(guess);
   
+  if (normalizedGuess.length < 3) {
+    return "Hãy nhập nhiều hơn để có gợi ý tốt hơn";
+  }
+  
   const answerWords = normalizedAnswer.split(' ');
   const guessWords = normalizedGuess.split(' ');
   
-  // Kiểm tra độ dài
-  if (answer.length > guess.length + 3) {
-    return "💡 Thử nghĩ tên dài hơn một chút!";
-  } else if (answer.length < guess.length - 3) {
-    return "💡 Thử nghĩ tên ngắn hơn một chút!";
+  // Tìm từ tương đồng
+  let matchedWords = [];
+  answerWords.forEach(word => {
+    if (word.length > 2 && guessWords.some(gw => gw.includes(word) || word.includes(gw))) {
+      matchedWords.push(word);
+    }
+  });
+  
+  if (matchedWords.length > 0) {
+    return `Bạn đã đúng một phần: "${matchedWords.join(', ')}" xuất hiện trong đáp án.`;
   }
   
-  // Kiểm tra số từ
-  if (answerWords.length > guessWords.length) {
-    return "💡 Đáp án có nhiều từ hơn!";
-  } else if (answerWords.length < guessWords.length) {
-    return "💡 Đáp án có ít từ hơn!";
+  // Kiểm tra có từ nào bắt đầu giống nhau không
+  const firstAnswerWord = answerWords[0];
+  const firstGuessWord = guessWords[0];
+  
+  if (firstAnswerWord && firstGuessWord && firstAnswerWord.charAt(0) === firstGuessWord.charAt(0)) {
+    return `Đáp án bắt đầu bằng chữ cái "${firstAnswerWord.charAt(0).toUpperCase()}"`;
   }
   
-  // Kiểm tra chữ cái đầu
-  if (normalizedAnswer[0] === normalizedGuess[0]) {
-    return "💡 Chữ cái đầu đúng rồi! Tiếp tục!";
+  // Gợi ý số từ
+  if (Math.abs(answerWords.length - guessWords.length) > 1) {
+    return `Đáp án có ${answerWords.length} từ.`;
   }
   
-  return "💡 Thử suy nghĩ theo hướng khác!";
+  return "Hãy thử một hướng khác. Đáp án không liên quan đến điều bạn đoán.";
 }; 

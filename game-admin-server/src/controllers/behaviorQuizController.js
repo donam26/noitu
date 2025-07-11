@@ -1,21 +1,92 @@
-const { BehaviorQuestion } = require('../models');
+const { BehaviorQuestion, sequelize } = require('../models');
 const fs = require('fs').promises;
 const path = require('path');
 
 /**
- * Lấy danh sách câu hỏi ứng xử
+ * Lấy câu hỏi ngẫu nhiên
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
+const getRandomQuestion = async (req, res) => {
+  try {
+    const { usedQuestions = [], category = null } = req.body;
+    
+    // Xây dựng điều kiện truy vấn
+    const whereCondition = {
+      id: {
+        [sequelize.Op.notIn]: usedQuestions
+      }
+    };
+    
+    // Thêm điều kiện category nếu có
+    if (category) {
+      whereCondition.category = category;
+    }
+    
+    // Tìm các câu hỏi chưa được sử dụng
+    const availableQuestions = await BehaviorQuestion.findAll({
+      where: whereCondition
+    });
+    
+    // Nếu không còn câu hỏi nào
+    if (availableQuestions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Đã hết câu hỏi, vui lòng reset'
+      });
+    }
+    
+    // Chọn câu hỏi ngẫu nhiên
+    const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+    const selectedQuestion = availableQuestions[randomIndex];
+    
+    // Format lại câu hỏi theo cấu trúc frontend cần
+    const formattedQuestion = {
+      question: selectedQuestion.question,
+      options: selectedQuestion.options,
+      correctAnswer: selectedQuestion.correct_answer,
+      explanation: selectedQuestion.explanation || '',
+      category: selectedQuestion.category || '',
+      difficulty: selectedQuestion.difficulty || 'medium'
+    };
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        question: formattedQuestion,
+        index: selectedQuestion.id
+      }
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy câu hỏi ngẫu nhiên:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server'
+    });
+  }
+};
+
+/**
+ * Lấy danh sách tất cả câu hỏi hành vi
+ */
 const getQuestions = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, category } = req.query;
     
     // Tính toán offset
     const offset = (page - 1) * limit;
     
+    // Xây dựng điều kiện truy vấn
+    const whereCondition = {};
+    
+    // Thêm điều kiện category nếu có
+    if (category) {
+      whereCondition.category = category;
+    }
+    
     // Truy vấn database
     const { count, rows: questions } = await BehaviorQuestion.findAndCountAll({
+      where: whereCondition,
       limit: parseInt(limit),
       offset: parseInt(offset),
       order: [['created_at', 'DESC']]
@@ -34,7 +105,7 @@ const getQuestions = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Lỗi khi lấy danh sách câu hỏi ứng xử:', error);
+    console.error('Lỗi khi lấy danh sách câu hỏi hành vi:', error);
     return res.status(500).json({
       success: false,
       message: 'Lỗi server'
@@ -305,6 +376,7 @@ const bulkCreateQuestions = async (req, res) => {
 };
 
 module.exports = {
+  getRandomQuestion,
   getQuestions,
   createQuestion,
   updateQuestion,

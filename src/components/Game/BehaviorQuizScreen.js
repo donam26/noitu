@@ -5,13 +5,13 @@ import Modal from '../common/Modal';
 import { 
   checkAnswer,
   calculateBehaviorScore,
-  getNewBehaviorQuestion,
   isBehaviorGameFinished,
   getAccuracyPercentage,
   getBehaviorPerformanceMessage,
   shuffleOptions
 } from '../../utils/behaviorQuizLogic';
 import { GAME_CONFIG } from '../../utils/constants';
+import useBehaviorData from '../../hooks/useBehaviorData';
 import './QuizScreen.css';
 
 /**
@@ -24,7 +24,6 @@ const BehaviorQuizScreen = ({ onBackHome }) => {
   const [currentOptions, setCurrentOptions] = useState([]);
   const [currentCorrectIndex, setCurrentCorrectIndex] = useState(-1);
   const [selectedAnswer, setSelectedAnswer] = useState(-1);
-  const [usedQuestions, setUsedQuestions] = useState([]);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [totalScore, setTotalScore] = useState(0);
   const [questionNumber, setQuestionNumber] = useState(1);
@@ -33,6 +32,16 @@ const BehaviorQuizScreen = ({ onBackHome }) => {
   const [modalContent, setModalContent] = useState({});
   const [gameStarted, setGameStarted] = useState(false);
   const [isAnswered, setIsAnswered] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Sử dụng custom hook
+  const {
+    loading,
+    error,
+    usedQuestions,
+    getRandomQuestion,
+    resetUsedQuestions
+  } = useBehaviorData();
   
   const timerKey = useRef(0);
   const maxQuestions = 10;
@@ -45,30 +54,52 @@ const BehaviorQuizScreen = ({ onBackHome }) => {
   /**
    * Tải câu hỏi mới
    */
-  const loadNewQuestion = () => {
-    const questionData = getNewBehaviorQuestion(usedQuestions);
+  const loadNewQuestion = async () => {
+    setIsLoading(true);
     
-    if (!questionData || isBehaviorGameFinished(usedQuestions, maxQuestions)) {
+    // Kiểm tra game kết thúc
+    if (isBehaviorGameFinished(usedQuestions, maxQuestions)) {
       endGame();
+      setIsLoading(false);
       return;
     }
-
-    const { question, index } = questionData;
     
-    // Xáo trộn các lựa chọn
-    const { shuffledOptions, newCorrectIndex } = shuffleOptions(
-      question.options, 
-      question.correctAnswer
-    );
-    
-    setCurrentQuestion(question);
-    setCurrentOptions(shuffledOptions);
-    setCurrentCorrectIndex(newCorrectIndex);
-    setSelectedAnswer(-1);
-    setIsAnswered(false);
-    setGameStarted(true);
-    setUsedQuestions(prev => [...prev, index]);
-    timerKey.current += 1; // Reset timer
+    try {
+      const result = await getRandomQuestion();
+      
+      if (!result) {
+        endGame();
+        setIsLoading(false);
+        return;
+      }
+      
+      const { question } = result;
+      
+      // Xáo trộn các lựa chọn
+      const { shuffledOptions, newCorrectIndex } = shuffleOptions(
+        question.options, 
+        question.correctAnswer
+      );
+      
+      setCurrentQuestion(question);
+      setCurrentOptions(shuffledOptions);
+      setCurrentCorrectIndex(newCorrectIndex);
+      setSelectedAnswer(-1);
+      setIsAnswered(false);
+      setGameStarted(true);
+      timerKey.current += 1; // Reset timer
+    } catch (err) {
+      console.error('Lỗi khi tải câu hỏi mới:', err);
+      
+      setModalContent({
+        title: 'Lỗi',
+        message: 'Không thể tải câu hỏi. Vui lòng thử lại sau.',
+        isError: true
+      });
+      setShowModal(true);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   /**
@@ -175,7 +206,7 @@ const BehaviorQuizScreen = ({ onBackHome }) => {
    * Chơi lại
    */
   const handlePlayAgain = () => {
-    setUsedQuestions([]);
+    resetUsedQuestions();
     setCorrectAnswers(0);
     setTotalScore(0);
     setQuestionNumber(1);
@@ -185,10 +216,34 @@ const BehaviorQuizScreen = ({ onBackHome }) => {
     loadNewQuestion();
   };
 
-  if (!currentQuestion) {
+  // Hiển thị trạng thái loading
+  if (isLoading || loading) {
     return (
       <div className="quiz-screen">
         <div className="loading">Đang tải câu hỏi...</div>
+      </div>
+    );
+  }
+  
+  // Hiển thị lỗi
+  if (error && !currentQuestion) {
+    return (
+      <div className="quiz-screen">
+        <div className="error">
+          <h3>Không thể tải câu hỏi</h3>
+          <p>{error}</p>
+          <Button variant="primary" onClick={() => window.location.reload()}>
+            Tải lại
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentQuestion) {
+    return (
+      <div className="quiz-screen">
+        <div className="loading">Đang khởi tạo game...</div>
       </div>
     );
   }
@@ -250,71 +305,33 @@ const BehaviorQuizScreen = ({ onBackHome }) => {
             <button
               key={index}
               className={`option-button ${
-                isAnswered 
-                  ? (index === currentCorrectIndex 
-                      ? 'correct' 
-                      : (index === selectedAnswer ? 'incorrect' : 'disabled')
-                    )
+                selectedAnswer === index 
+                  ? (index === currentCorrectIndex ? 'correct' : 'incorrect')
                   : ''
-              }`}
+              } ${isAnswered ? 'disabled' : ''}`}
               onClick={() => handleAnswerSelect(index)}
               disabled={isAnswered || isGameOver}
             >
               <span className="option-letter">
-                {String.fromCharCode(65 + index)}
+                {String.fromCharCode(65 + index)}.
               </span>
-              <span className="option-text">
-                {option}
-              </span>
+              <span className="option-text">{option}</span>
             </button>
           ))}
         </div>
 
-        {/* Game Over Actions */}
-        {isGameOver && (
-          <div className="game-over-actions">
-            <Button
-              variant="primary"
-              onClick={handlePlayAgain}
-              className="action-btn"
-            >
-              🔄 Chơi lại
-            </Button>
-          </div>
-        )}
+        {/* Modal */}
+        <Modal
+          isOpen={showModal}
+          title={modalContent.title}
+          message={modalContent.message}
+          onClose={modalContent.isGameOver ? null : handleCloseModal}
+          confirmText={modalContent.isGameOver ? "Chơi lại" : null}
+          onConfirm={modalContent.isGameOver ? handlePlayAgain : null}
+          cancelText={modalContent.isGameOver ? "Về trang chủ" : "OK"}
+          onCancel={modalContent.isGameOver ? onBackHome : handleCloseModal}
+        />
       </div>
-
-      {/* Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={handleCloseModal}
-        title={modalContent.title}
-      >
-        <div className="modal-content">
-          <p style={{ whiteSpace: 'pre-line', lineHeight: '1.6' }}>
-            {modalContent.message}
-          </p>
-          
-          {modalContent.isGameOver && (
-            <div className="modal-actions">
-              <Button
-                variant="primary"
-                onClick={handlePlayAgain}
-                className="modal-action-btn"
-              >
-                🔄 Chơi lại
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={onBackHome}
-                className="modal-action-btn"
-              >
-                🏠 Về trang chủ
-              </Button>
-            </div>
-          )}
-        </div>
-      </Modal>
     </div>
   );
 };

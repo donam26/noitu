@@ -10,8 +10,8 @@ const Admin = sequelize.define('Admin', {
   },
   username: {
     type: DataTypes.STRING,
-    allowNull: false,
-    unique: true
+    allowNull: false
+    // Đã xóa unique constraint
   },
   password: {
     type: DataTypes.STRING,
@@ -20,10 +20,10 @@ const Admin = sequelize.define('Admin', {
   email: {
     type: DataTypes.STRING,
     allowNull: true,
-    unique: true,
     validate: {
       isEmail: true
     }
+    // Đã xóa unique constraint
   },
   full_name: {
     type: DataTypes.STRING,
@@ -56,6 +56,7 @@ const Admin = sequelize.define('Admin', {
       }
     }
   }
+  // Đã xóa phần indexes
 });
 
 // Phương thức kiểm tra mật khẩu

@@ -1,6 +1,7 @@
 const { QuizQuestion } = require('../models');
 const fs = require('fs').promises;
 const path = require('path');
+const sequelize = require('sequelize'); // Added for Op.notIn
 
 /**
  * Lấy danh sách câu hỏi quiz
@@ -68,8 +69,8 @@ const createQuestion = async (req, res) => {
       created_by: req.admin.id
     });
     
-    // Cập nhật file JavaScript
-    await updateQuizQuestionsFile();
+    // Không cập nhật file JS nữa
+    // await updateQuizQuestionsFile();
     
     return res.status(201).json({
       success: true,
@@ -113,8 +114,8 @@ const updateQuestion = async (req, res) => {
     
     await quizQuestion.save();
     
-    // Cập nhật file JavaScript
-    await updateQuizQuestionsFile();
+    // Không cập nhật file JS nữa
+    // await updateQuizQuestionsFile();
     
     return res.status(200).json({
       success: true,
@@ -152,8 +153,8 @@ const deleteQuestion = async (req, res) => {
     // Xóa câu hỏi
     await quizQuestion.destroy();
     
-    // Cập nhật file JavaScript
-    await updateQuizQuestionsFile();
+    // Không cập nhật file JS nữa
+    // await updateQuizQuestionsFile();
     
     return res.status(200).json({
       success: true,
@@ -270,8 +271,8 @@ const bulkCreateQuestions = async (req, res) => {
     // Tạo nhiều câu hỏi
     const createdQuestions = await QuizQuestion.bulkCreate(questionsWithCreator);
     
-    // Cập nhật file JavaScript
-    await updateQuizQuestionsFile();
+    // Không cập nhật file JS nữa
+    // await updateQuizQuestionsFile();
     
     return res.status(201).json({
       success: true,
@@ -289,11 +290,66 @@ const bulkCreateQuestions = async (req, res) => {
   }
 };
 
+/**
+ * Lấy câu hỏi ngẫu nhiên
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getRandomQuestion = async (req, res) => {
+  try {
+    const { usedQuestions = [] } = req.body;
+    
+    // Tìm các câu hỏi chưa được sử dụng
+    const availableQuestions = await QuizQuestion.findAll({
+      where: {
+        id: {
+          [sequelize.Op.notIn]: usedQuestions
+        }
+      }
+    });
+    
+    // Nếu không còn câu hỏi nào
+    if (availableQuestions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Đã hết câu hỏi, vui lòng reset'
+      });
+    }
+    
+    // Chọn câu hỏi ngẫu nhiên
+    const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+    const selectedQuestion = availableQuestions[randomIndex];
+    
+    // Format lại câu hỏi theo cấu trúc frontend cần
+    const formattedQuestion = {
+      question: selectedQuestion.question,
+      options: selectedQuestion.options,
+      correctAnswer: selectedQuestion.correct_answer,
+      explanation: selectedQuestion.explanation || ''
+    };
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        question: formattedQuestion,
+        index: selectedQuestion.id
+      }
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy câu hỏi ngẫu nhiên:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server'
+    });
+  }
+};
+
 module.exports = {
   getQuestions,
   createQuestion,
   updateQuestion,
   deleteQuestion,
+  updateQuizQuestionsFile,
   bulkCreateQuestions,
-  updateQuizQuestionsFile
+  getRandomQuestion
 }; 

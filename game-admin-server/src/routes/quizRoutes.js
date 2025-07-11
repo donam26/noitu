@@ -1,19 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const quizController = require('../controllers/quizController');
-const { authenticate, isAdmin } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 
-// Tất cả routes đều yêu cầu authenticate
-router.use(authenticate);
-
-// CRUD routes
+// Public routes
 router.get('/', quizController.getQuestions);
-router.post('/', isAdmin, quizController.createQuestion);
-router.put('/:id', isAdmin, quizController.updateQuestion);
-router.delete('/:id', isAdmin, quizController.deleteQuestion);
+router.post('/random', quizController.getRandomQuestion);
 
-// Bulk actions
-router.post('/bulk', isAdmin, quizController.bulkCreateQuestions);
+// Protected routes
+router.post('/', authenticate, quizController.createQuestion);
+router.put('/:id', authenticate, quizController.updateQuestion);
+router.delete('/:id', authenticate, quizController.deleteQuestion);
+router.post('/bulk', authenticate, quizController.bulkCreateQuestions);
 
-// Export để sử dụng trong file index
 module.exports = router; 

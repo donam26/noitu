@@ -49,8 +49,9 @@ const startServer = async () => {
       process.exit(1);
     }
 
-    // Đồng bộ hóa models với database
-    await sequelize.sync({ alter: process.env.NODE_ENV !== 'production' });
+    // Đồng bộ hóa models với database - tắt chế độ tự động thay đổi bảng
+    // Thay đổi từ { alter: true } thành { alter: false }
+    await sequelize.sync({ alter: false });
     console.log('✅ Models đã được đồng bộ với database');
 
     // Chạy seeder nếu được yêu cầu

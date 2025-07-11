@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
-import { showSuccess, showError, showInfo } from '../../utils/toast';
-import { getAuthHeaders } from '../../utils/auth';
+import { showSuccess, showError } from '../../utils/toast';
 import './QuizManager.css';
+import { knowledgeAPI } from '../../services/api';
 
 /**
  * Component KnowledgeQuizManager - Quản lý CRUD câu hỏi Vua Kiến Thức
@@ -36,40 +35,24 @@ const KnowledgeQuizManager = () => {
     difficulty: 'medium'
   });
 
-  // API headers với token
-  const getHeaders = () => {
-    const token = localStorage.getItem('adminToken');
-    return {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
-    };
-  };
-
   // Lấy danh sách câu hỏi từ API
   const fetchQuestions = async (signal) => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await axios.get(`http://localhost:3001/api/knowledge?page=${currentPage}&limit=5`, {
-        ...getAuthHeaders(),
-        signal
-      });
+      const response = await knowledgeAPI.getQuestions(currentPage, 5);
       
-      if (response.data.success) {
-        setQuestions(response.data.data.questions);
-        setTotalPages(response.data.data.pagination.pages);
-        setTotalQuestions(response.data.data.pagination.total);
+      if (response.success) {
+        setQuestions(response.data.questions);
+        setTotalPages(response.data.pagination.pages);
+        setTotalQuestions(response.data.pagination.total);
       } else {
-        setError('Không thể tải danh sách câu hỏi kiến thức');
+        setError(response.message || 'Không thể tải danh sách câu hỏi kiến thức');
       }
     } catch (error) {
-      if (!axios.isCancel(error)) {
-        console.error('Lỗi khi tải danh sách câu hỏi kiến thức:', error);
-        setError('Lỗi kết nối đến server');
-      }
+      console.error('Lỗi khi tải danh sách câu hỏi kiến thức:', error);
+      setError('Lỗi kết nối đến server');
     } finally {
       setLoading(false);
     }
@@ -173,25 +156,23 @@ const KnowledgeQuizManager = () => {
         return;
       }
       
-      const response = await axios.post(
-        'http://localhost:3001/api/knowledge',
-        {
-          question: formData.question,
-          options: formData.options,
-          correctAnswer: formData.correctAnswer,
-          explanation: formData.explanation,
-          category: formData.category,
-          difficulty: formData.difficulty
-        },
-        getHeaders()
-      );
+      const questionData = {
+        question: formData.question,
+        options: formData.options,
+        correctAnswer: formData.correctAnswer,
+        explanation: formData.explanation,
+        category: formData.category,
+        difficulty: formData.difficulty
+      };
 
-      if (response.data.success) {
-        showSuccess('Thêm câu hỏi kiến thức thành công');
+      const response = await knowledgeAPI.addQuestion(questionData);
+
+      if (response.success) {
+        showSuccess(response.message || 'Thêm câu hỏi kiến thức thành công');
         setShowAddModal(false);
         fetchQuestions();
       } else {
-        showError('Lỗi khi thêm câu hỏi: ' + response.data.message);
+        showError(response.message || 'Lỗi khi thêm câu hỏi');
       }
     } catch (error) {
       console.error('Lỗi khi thêm câu hỏi kiến thức:', error);
@@ -206,29 +187,27 @@ const KnowledgeQuizManager = () => {
         showError('Vui lòng nhập đầy đủ câu hỏi và các phương án trả lời');
         return;
       }
-      
-      const response = await axios.put(
-        `http://localhost:3001/api/knowledge/${currentQuestion.id}`,
-        {
-          question: formData.question,
-          options: formData.options,
-          correctAnswer: formData.correctAnswer,
-          explanation: formData.explanation,
-          category: formData.category,
-          difficulty: formData.difficulty
-        },
-        getHeaders()
-      );
 
-      if (response.data.success) {
-        showSuccess('Cập nhật câu hỏi kiến thức thành công');
+      const questionData = {
+        question: formData.question,
+        options: formData.options,
+        correctAnswer: formData.correctAnswer,
+        explanation: formData.explanation,
+        category: formData.category,
+        difficulty: formData.difficulty
+      };
+
+      const response = await knowledgeAPI.updateQuestion(currentQuestion.id, questionData);
+
+      if (response.success) {
+        showSuccess(response.message || 'Cập nhật câu hỏi kiến thức thành công');
         setShowEditModal(false);
         fetchQuestions();
       } else {
-        showError('Lỗi khi cập nhật câu hỏi: ' + response.data.message);
+        showError(response.message || 'Lỗi khi cập nhật câu hỏi');
       }
     } catch (error) {
-      console.error('Lỗi khi cập nhật câu hỏi kiến thức:', error);
+      console.error('Lỗi khi cập nhật câu hỏi:', error);
       showError('Lỗi kết nối đến server');
     }
   };
@@ -236,90 +215,66 @@ const KnowledgeQuizManager = () => {
   // Xử lý xóa câu hỏi
   const handleDeleteQuestion = async () => {
     try {
-      const response = await axios.delete(
-        `http://localhost:3001/api/knowledge/${currentQuestion.id}`,
-        getHeaders()
-      );
-      
-      if (response.data.success) {
-        showSuccess('Xóa câu hỏi kiến thức thành công');
+      const response = await knowledgeAPI.deleteQuestion(currentQuestion.id);
+
+      if (response.success) {
+        showSuccess(response.message || 'Xóa câu hỏi kiến thức thành công');
         setShowDeleteModal(false);
         fetchQuestions();
       } else {
-        showError('Lỗi khi xóa câu hỏi: ' + response.data.message);
+        showError(response.message || 'Lỗi khi xóa câu hỏi');
       }
     } catch (error) {
-      console.error('Lỗi khi xóa câu hỏi kiến thức:', error);
+      console.error('Lỗi khi xóa câu hỏi:', error);
       showError('Lỗi kết nối đến server');
     }
   };
 
-  // Lọc câu hỏi theo search
-  const filteredQuestions = questions.filter(q =>
-    q.question.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Xử lý tìm kiếm
+  const handleSearch = () => {
+    setCurrentPage(1); // Reset về trang 1
+    fetchQuestions();
+  };
 
-  // Export dữ liệu
-  const handleExport = () => {
-    const dataStr = JSON.stringify(questions.map(({ id, ...q }) => ({
-      question: q.question,
-      options: q.options,
-      correctAnswer: q.correct_answer,
-      explanation: q.explanation || '',
-      category: q.category || '',
-      difficulty: q.difficulty || 'medium'
-    })), null, 2);
-    
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'knowledge_questions_export.json';
-    link.click();
-    
-    showSuccess(`Đã export ${questions.length} câu hỏi kiến thức!`);
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+  
+  // Nhãn độ khó
+  const difficultyLabels = {
+    easy: '🟢 Dễ',
+    medium: '🟡 Trung bình',
+    hard: '🔴 Khó'
   };
 
   return (
     <div className="quiz-manager">
       <div className="quiz-header">
         <div className="quiz-title">
-          <h2>🧠 Quản lý Câu hỏi Kiến Thức</h2>
-          <p>Tổng số: {totalQuestions} câu hỏi về khoa học, thiên nhiên và văn hóa</p>
+          <h2>🧠 Quản lý câu hỏi "Vua Kiến Thức"</h2>
+          <p>Tổng số câu hỏi: {totalQuestions}</p>
         </div>
+
+        <div className="search-box">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyPress={handleSearchKeyPress}
+            placeholder="Tìm kiếm câu hỏi..."
+          />
+          <Button onClick={handleSearch}>🔍 Tìm kiếm</Button>
+        </div>
+        
         <div className="quiz-actions">
-          <Button
-            variant="secondary"
-            onClick={handleExport}
-            className="export-btn"
-          >
-            📥 Export JSON
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleOpenAddModal}
-            className="add-btn"
-          >
+          <Button onClick={handleOpenAddModal} className="add-btn">
             ➕ Thêm câu hỏi
           </Button>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="search-section">
-        <input
-          type="text"
-          placeholder="🔍 Tìm kiếm câu hỏi..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="search-input"
-        />
-      </div>
-
-      {/* Questions List */}
       {loading ? (
         <div className="loading">Đang tải...</div>
       ) : error ? (
@@ -327,273 +282,288 @@ const KnowledgeQuizManager = () => {
       ) : (
         <>
           <div className="questions-list">
-            {filteredQuestions.length > 0 ? (
-              filteredQuestions.map((question, index) => (
+            {questions.length === 0 ? (
+              <div className="empty-state">
+                <p>Chưa có câu hỏi nào. Hãy thêm câu hỏi mới!</p>
+              </div>
+            ) : (
+              questions.map((question) => (
                 <div key={question.id} className="question-card">
                   <div className="question-header">
-                    <div className="question-number">
-                      #{(currentPage - 1) * 5 + index + 1}
+                    <div className="question-info">
+                      <span className="question-number">#{question.id}</span>
+                      <span className={`question-difficulty ${question.difficulty}`}>
+                        {difficultyLabels[question.difficulty] || '🟡 Trung bình'}
+                      </span>
+                      {question.category && (
+                        <span className="question-category">📂 {question.category}</span>
+                      )}
                     </div>
                     <div className="question-actions">
                       <button
                         className="edit-btn"
                         onClick={() => handleOpenEditModal(question)}
-                        title="Chỉnh sửa"
+                        title="Sửa câu hỏi"
                       >
                         ✏️
                       </button>
                       <button
                         className="delete-btn"
                         onClick={() => handleOpenDeleteModal(question)}
-                        title="Xóa"
+                        title="Xóa câu hỏi"
                       >
                         🗑️
                       </button>
                     </div>
                   </div>
-                  
                   <div className="question-content">
-                    <h4>{question.question}</h4>
-                    <div className="options-grid">
-                      {question.options.map((option, optIndex) => (
+                    <h3>{question.question}</h3>
+                    <div className="options-list">
+                      {question.options.map((option, index) => (
                         <div
-                          key={optIndex}
-                          className={`option-item ${
-                            optIndex === question.correct_answer ? 'correct' : ''
-                          }`}
+                          key={index}
+                          className={`option ${index === question.correct_answer ? 'correct' : ''}`}
                         >
-                          <span className="option-letter">
-                            {String.fromCharCode(65 + optIndex)}
-                          </span>
-                          <span className="option-text">{option}</span>
-                          {optIndex === question.correct_answer && (
-                            <span className="correct-badge">✓</span>
-                          )}
+                          {String.fromCharCode(65 + index)}. {option}
+                          {index === question.correct_answer && <span className="correct-badge">✓</span>}
                         </div>
                       ))}
                     </div>
                     {question.explanation && (
                       <div className="explanation">
-                        <strong>💡 Giải thích:</strong> {question.explanation}
-                      </div>
-                    )}
-                    {question.category && (
-                      <div className="category-tag">
-                        <span className="tag">🏷️ {question.category}</span>
+                        <strong>Giải thích:</strong> {question.explanation}
                       </div>
                     )}
                   </div>
                 </div>
               ))
-            ) : (
-              <div className="empty-state">
-                <p>🔍 Không tìm thấy câu hỏi nào</p>
-              </div>
             )}
           </div>
 
-          {/* Pagination */}
+          {/* Phân trang */}
           {totalPages > 1 && (
             <div className="pagination">
-              <Button
-                variant="secondary"
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
               >
-                ← Trước
-              </Button>
-              
-              <span className="page-info">
+                &laquo; Trước
+              </button>
+              <span>
                 Trang {currentPage} / {totalPages}
               </span>
-              
-              <Button
-                variant="secondary"
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
               >
-                Sau →
-              </Button>
+                Sau &raquo;
+              </button>
             </div>
           )}
         </>
       )}
 
-      {/* Add Modal */}
+      {/* Modal thêm câu hỏi */}
       <Modal
-        title="➕ Thêm câu hỏi kiến thức"
+        isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSubmit={handleAddQuestion}
-        submitText="Thêm câu hỏi"
-        show={showAddModal}
+        title="Thêm câu hỏi mới"
       >
-        <div className="form-group">
-          <label>Câu hỏi kiến thức *</label>
-          <textarea
-            name="question"
-            value={formData.question}
-            onChange={handleFormChange}
-            placeholder="Nhập câu hỏi về khoa học, thiên nhiên, văn hóa..."
-            rows="3"
-          />
-        </div>
+        <div className="question-form">
+          <div className="form-group">
+            <label htmlFor="question">Câu hỏi:</label>
+            <textarea
+              id="question"
+              name="question"
+              value={formData.question}
+              onChange={handleFormChange}
+              placeholder="Nhập câu hỏi..."
+            />
+          </div>
 
-        <div className="form-group">
-          <label>Các lựa chọn *</label>
-          {formData.options.map((option, index) => (
-            <div key={index} className="option-input">
-              <div className="option-prefix">
+          <div className="form-group options-group">
+            <label>Các phương án trả lời:</label>
+            {formData.options.map((option, index) => (
+              <div key={index} className="option-input">
+                <span className="option-label">
+                  {String.fromCharCode(65 + index)}
+                </span>
+                <input
+                  type="text"
+                  name={`option${index}`}
+                  value={option}
+                  onChange={handleFormChange}
+                  placeholder={`Phương án ${String.fromCharCode(65 + index)}...`}
+                />
                 <input
                   type="radio"
                   name="correctAnswer"
                   value={index}
                   checked={formData.correctAnswer === index}
                   onChange={handleFormChange}
+                  title="Chọn đáp án đúng"
                 />
-                <span>{String.fromCharCode(65 + index)}</span>
               </div>
+            ))}
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="category">Danh mục:</label>
               <input
                 type="text"
-                name={`option${index}`}
-                value={option}
+                id="category"
+                name="category"
+                value={formData.category}
                 onChange={handleFormChange}
-                placeholder={`Lựa chọn ${String.fromCharCode(65 + index)}`}
+                placeholder="Danh mục câu hỏi (tùy chọn)"
               />
             </div>
-          ))}
-          <p className="help-text">📌 Chọn radio button bên cạnh đáp án đúng</p>
-        </div>
+            
+            <div className="form-group">
+              <label htmlFor="difficulty">Độ khó:</label>
+              <select
+                id="difficulty"
+                name="difficulty"
+                value={formData.difficulty}
+                onChange={handleFormChange}
+              >
+                <option value="easy">Dễ</option>
+                <option value="medium">Trung bình</option>
+                <option value="hard">Khó</option>
+              </select>
+            </div>
+          </div>
 
-        <div className="form-group">
-          <label>Danh mục (tùy chọn)</label>
-          <input
-            type="text"
-            name="category"
-            value={formData.category}
-            onChange={handleFormChange}
-            placeholder="Ví dụ: Khoa học, Lịch sử, Địa lý, ..."
-          />
-        </div>
+          <div className="form-group">
+            <label htmlFor="explanation">Giải thích (không bắt buộc):</label>
+            <textarea
+              id="explanation"
+              name="explanation"
+              value={formData.explanation}
+              onChange={handleFormChange}
+              placeholder="Giải thích đáp án..."
+            />
+          </div>
 
-        <div className="form-group">
-          <label>Độ khó</label>
-          <select 
-            name="difficulty"
-            value={formData.difficulty}
-            onChange={handleFormChange}
-          >
-            <option value="easy">Dễ</option>
-            <option value="medium">Trung bình</option>
-            <option value="hard">Khó</option>
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>Giải thích (tuỳ chọn)</label>
-          <textarea
-            name="explanation"
-            value={formData.explanation}
-            onChange={handleFormChange}
-            placeholder="Giải thích khoa học chi tiết về đáp án đúng..."
-            rows="2"
-          />
+          <div className="form-actions">
+            <Button onClick={() => setShowAddModal(false)} variant="secondary">
+              Hủy bỏ
+            </Button>
+            <Button onClick={handleAddQuestion}>Lưu câu hỏi</Button>
+          </div>
         </div>
       </Modal>
 
-      {/* Edit Modal */}
+      {/* Modal chỉnh sửa câu hỏi */}
       <Modal
-        title="✏️ Chỉnh sửa câu hỏi kiến thức"
+        isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
-        onSubmit={handleUpdateQuestion}
-        submitText="Cập nhật"
-        show={showEditModal}
+        title="Chỉnh sửa câu hỏi"
       >
-        <div className="form-group">
-          <label>Câu hỏi kiến thức *</label>
-          <textarea
-            name="question"
-            value={formData.question}
-            onChange={handleFormChange}
-            placeholder="Nhập câu hỏi về khoa học, thiên nhiên, văn hóa..."
-            rows="3"
-          />
-        </div>
+        <div className="question-form">
+          <div className="form-group">
+            <label htmlFor="edit-question">Câu hỏi:</label>
+            <textarea
+              id="edit-question"
+              name="question"
+              value={formData.question}
+              onChange={handleFormChange}
+              placeholder="Nhập câu hỏi..."
+            />
+          </div>
 
-        <div className="form-group">
-          <label>Các lựa chọn *</label>
-          {formData.options.map((option, index) => (
-            <div key={index} className="option-input">
-              <div className="option-prefix">
+          <div className="form-group options-group">
+            <label>Các phương án trả lời:</label>
+            {formData.options.map((option, index) => (
+              <div key={index} className="option-input">
+                <span className="option-label">
+                  {String.fromCharCode(65 + index)}
+                </span>
+                <input
+                  type="text"
+                  name={`option${index}`}
+                  value={option}
+                  onChange={handleFormChange}
+                  placeholder={`Phương án ${String.fromCharCode(65 + index)}...`}
+                />
                 <input
                   type="radio"
                   name="correctAnswer"
                   value={index}
                   checked={formData.correctAnswer === index}
                   onChange={handleFormChange}
+                  title="Chọn đáp án đúng"
                 />
-                <span>{String.fromCharCode(65 + index)}</span>
               </div>
+            ))}
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="edit-category">Danh mục:</label>
               <input
                 type="text"
-                name={`option${index}`}
-                value={option}
+                id="edit-category"
+                name="category"
+                value={formData.category}
                 onChange={handleFormChange}
-                placeholder={`Lựa chọn ${String.fromCharCode(65 + index)}`}
+                placeholder="Danh mục câu hỏi (tùy chọn)"
               />
             </div>
-          ))}
-          <p className="help-text">📌 Chọn radio button bên cạnh đáp án đúng</p>
-        </div>
+            
+            <div className="form-group">
+              <label htmlFor="edit-difficulty">Độ khó:</label>
+              <select
+                id="edit-difficulty"
+                name="difficulty"
+                value={formData.difficulty}
+                onChange={handleFormChange}
+              >
+                <option value="easy">Dễ</option>
+                <option value="medium">Trung bình</option>
+                <option value="hard">Khó</option>
+              </select>
+            </div>
+          </div>
 
-        <div className="form-group">
-          <label>Danh mục (tùy chọn)</label>
-          <input
-            type="text"
-            name="category"
-            value={formData.category}
-            onChange={handleFormChange}
-            placeholder="Ví dụ: Khoa học, Lịch sử, Địa lý, ..."
-          />
-        </div>
+          <div className="form-group">
+            <label htmlFor="edit-explanation">Giải thích (không bắt buộc):</label>
+            <textarea
+              id="edit-explanation"
+              name="explanation"
+              value={formData.explanation}
+              onChange={handleFormChange}
+              placeholder="Giải thích đáp án..."
+            />
+          </div>
 
-        <div className="form-group">
-          <label>Độ khó</label>
-          <select 
-            name="difficulty"
-            value={formData.difficulty}
-            onChange={handleFormChange}
-          >
-            <option value="easy">Dễ</option>
-            <option value="medium">Trung bình</option>
-            <option value="hard">Khó</option>
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>Giải thích (tuỳ chọn)</label>
-          <textarea
-            name="explanation"
-            value={formData.explanation}
-            onChange={handleFormChange}
-            placeholder="Giải thích khoa học chi tiết về đáp án đúng..."
-            rows="2"
-          />
+          <div className="form-actions">
+            <Button onClick={() => setShowEditModal(false)} variant="secondary">
+              Hủy bỏ
+            </Button>
+            <Button onClick={handleUpdateQuestion}>Lưu thay đổi</Button>
+          </div>
         </div>
       </Modal>
 
-      {/* Delete Modal */}
+      {/* Modal xác nhận xóa */}
       <Modal
-        title="🗑️ Xác nhận xóa câu hỏi kiến thức"
+        isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
-        onSubmit={handleDeleteQuestion}
-        submitText="Xóa câu hỏi"
-        submitVariant="danger"
-        show={showDeleteModal}
+        title="Xác nhận xóa"
+        size="small"
       >
-        <div className="question-preview">
-          <p>Bạn có chắc muốn xóa câu hỏi:</p>
-          <p><strong>{currentQuestion?.question}</strong></p>
-          <p>Hành động này không thể hoàn tác.</p>
+        <div className="confirm-delete">
+          <p>Bạn có chắc chắn muốn xóa câu hỏi này không?</p>
+          <div className="form-actions">
+            <Button onClick={() => setShowDeleteModal(false)} variant="secondary">
+              Hủy bỏ
+            </Button>
+            <Button onClick={handleDeleteQuestion} variant="danger">
+              Xóa câu hỏi
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

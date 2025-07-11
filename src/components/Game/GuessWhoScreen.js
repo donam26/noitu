@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
 import {
-  getNewGuessWhoQuestion,
   checkGuess,
   isGameFinished,
   getAccuracyPercentage,
@@ -14,6 +13,7 @@ import {
   generateHintFromGuess,
   formatLastPlayed
 } from '../../utils/guessWhoLogic';
+import useGameData from '../../hooks/useGameData';
 import './GuessWhoScreen.css';
 
 /**
@@ -23,7 +23,6 @@ import './GuessWhoScreen.css';
  */
 const GuessWhoScreen = ({ onBackHome }) => {
   const [currentQuestion, setCurrentQuestion] = useState(null);
-  const [usedQuestionIds, setUsedQuestionIds] = useState([]);
   const [currentHintIndex, setCurrentHintIndex] = useState(0);
   const [visibleHints, setVisibleHints] = useState([]);
   const [guess, setGuess] = useState('');
@@ -38,6 +37,17 @@ const GuessWhoScreen = ({ onBackHome }) => {
   const [gameStats, setGameStats] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [currentQuestionScore, setCurrentQuestionScore] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Sử dụng custom hook
+  const {
+    loading,
+    error,
+    usedGuessWhoIds,
+    fetchGuessWhoData,
+    getRandomGuessWhoQuestion,
+    resetGuessWhoIds
+  } = useGameData();
   
   const inputRef = useRef(null);
   const maxQuestions = 10;
@@ -46,8 +56,15 @@ const GuessWhoScreen = ({ onBackHome }) => {
   // Load game stats và khởi tạo game
   useEffect(() => {
     loadGameStats();
-    loadNewQuestion();
-  }, []);
+    fetchGuessWhoData();
+  }, [fetchGuessWhoData]);
+  
+  // Load câu hỏi khi dữ liệu đã sẵn sàng
+  useEffect(() => {
+    if (!loading && !currentQuestion) {
+      loadNewQuestion();
+    }
+  }, [loading]);
 
   // Focus vào input
   useEffect(() => {
@@ -68,16 +85,20 @@ const GuessWhoScreen = ({ onBackHome }) => {
    * Load câu đố mới
    */
   const loadNewQuestion = () => {
+    setIsLoading(true);
+    
     // Safety check để tránh load khi đã game over
     if (isGameOver || questionNumber > maxQuestions) {
       endGame();
+      setIsLoading(false);
       return;
     }
     
-    const question = getNewGuessWhoQuestion(usedQuestionIds);
+    const question = getRandomGuessWhoQuestion();
     
-    if (!question || isGameFinished(usedQuestionIds, maxQuestions)) {
+    if (!question || isGameFinished(usedGuessWhoIds, maxQuestions)) {
       endGame();
+      setIsLoading(false);
       return;
     }
 
@@ -89,7 +110,7 @@ const GuessWhoScreen = ({ onBackHome }) => {
     setAttempts([]);
     setIsAnswered(false);
     setCurrentQuestionScore(0);
-    setUsedQuestionIds(prev => [...prev, question.id]);
+    setIsLoading(false);
     
     // Focus vào input sau khi load xong và reset placeholder
     setTimeout(() => {
@@ -254,14 +275,15 @@ const GuessWhoScreen = ({ onBackHome }) => {
    * Tính kết quả theo category
    */
   const calculateCategoryResults = () => {
-    // Simplified version - in real game would track per question
     const results = {};
-    if (currentQuestion) {
+    
+    if (currentQuestion && currentQuestion.category) {
       results[currentQuestion.category] = {
-        correct: isAnswered && currentQuestionScore > 0 ? 1 : 0,
-        total: 1
+        total: questionNumber,
+        correct: correctAnswers
       };
     }
+    
     return results;
   };
 
@@ -269,8 +291,6 @@ const GuessWhoScreen = ({ onBackHome }) => {
    * Đóng modal
    */
   const handleCloseModal = () => {
-    // Nếu đang ở trạng thái cần chuyển tiếp, không cho đóng modal bằng nút X
-    if (modalContent && modalContent.showContinue) return;
     setShowModal(false);
   };
 
@@ -278,30 +298,120 @@ const GuessWhoScreen = ({ onBackHome }) => {
    * Chơi lại
    */
   const handlePlayAgain = () => {
-    setUsedQuestionIds([]);
+    resetGuessWhoIds();
+    setQuestionNumber(1);
     setCorrectAnswers(0);
     setGameScore(0);
-    setQuestionNumber(1);
+    setCurrentQuestionScore(0);
     setIsGameOver(false);
     setShowModal(false);
     setIsAnswered(false);
-    setCurrentQuestionScore(0);
+    setGuess('');
+    setAttempts([]);
+    setCurrentHintIndex(0);
+    setVisibleHints([]);
+    setCurrentQuestion(null);
+    
+    // Reload game stats và câu hỏi mới
+    loadGameStats();
     loadNewQuestion();
   };
 
   /**
-   * Xóa thống kê
+   * Xóa thống kê game
    */
   const handleClearStats = () => {
     clearGameStats();
     loadGameStats();
+    
+    setModalContent({
+      title: '🗑️ Đã xóa thống kê',
+      message: 'Tất cả thống kê chơi game đã được xóa.',
+      isInfo: true
+    });
+    setShowModal(true);
     setShowStats(false);
   };
 
+  // Hiển thị loading
+  if (isLoading || loading) {
+    return (
+      <div className="guess-who-screen">
+        <div className="loading">Đang tải câu hỏi...</div>
+      </div>
+    );
+  }
+  
+  // Hiển thị lỗi
+  if (error && !currentQuestion) {
+    return (
+      <div className="guess-who-screen">
+        <div className="error">
+          <h3>Không thể tải dữ liệu</h3>
+          <p>{error}</p>
+          <Button variant="primary" onClick={() => window.location.reload()}>
+            Tải lại
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Hiển thị thống kê
+  if (showStats) {
+    return (
+      <div className="guess-who-screen">
+        <div className="game-container">
+          <div className="header">
+            <Button
+              variant="secondary"
+              onClick={() => setShowStats(false)}
+              className="back-btn"
+            >
+              ← Quay lại game
+            </Button>
+            <h1>📊 Thống kê game</h1>
+          </div>
+          
+          <div className="stats-container">
+            <div className="stats-card">
+              <h2>Tổng quát</h2>
+              <p>Số game đã chơi: {gameStats?.totalGames || 0}</p>
+              <p>Tổng số câu đã trả lời: {gameStats?.totalQuestions || 0}</p>
+              <p>Số câu trả lời đúng: {gameStats?.totalCorrect || 0}</p>
+              <p>Tỷ lệ chính xác: {gameStats?.totalQuestions ? Math.round((gameStats.totalCorrect / gameStats.totalQuestions) * 100) : 0}%</p>
+              <p>Tổng điểm: {gameStats?.totalScore || 0}</p>
+              <p>Điểm cao nhất: {gameStats?.bestScore || 0}</p>
+              <p>Lần chơi gần nhất: {gameStats?.lastPlayed ? formatLastPlayed(gameStats.lastPlayed) : 'Chưa có'}</p>
+            </div>
+            
+            <div className="stats-actions">
+              <Button
+                variant="secondary"
+                onClick={handleClearStats}
+                className="clear-stats-btn"
+              >
+                🗑️ Xóa thống kê
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => setShowStats(false)}
+                className="return-btn"
+              >
+                🎮 Quay lại game
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Chưa có câu hỏi
   if (!currentQuestion) {
     return (
       <div className="guess-who-screen">
-        <div className="loading">Đang tải câu đố...</div>
+        <div className="loading">Đang khởi tạo game...</div>
       </div>
     );
   }
@@ -310,13 +420,13 @@ const GuessWhoScreen = ({ onBackHome }) => {
     <div className="guess-who-screen">
       <div className="game-container">
         {/* Header */}
-        <div className="game-header">
+        <div className="header">
           <Button
             variant="secondary"
             onClick={onBackHome}
             className="back-btn"
           >
-            ← Về trang chủ
+            ← Trang chủ
           </Button>
           
           <div className="game-info">
@@ -328,224 +438,122 @@ const GuessWhoScreen = ({ onBackHome }) => {
               <span className="correct-count">Đúng: {correctAnswers}</span>
             </div>
           </div>
-        </div>
-
-        {/* Game Title */}
-        <div className="game-title">
-          <h1>🕵️ Tôi là ai?</h1>
-          <p>Đoán đối tượng qua những gợi ý hài hước</p>
-        </div>
-
-        {/* Question Info */}
-        <div className="question-info">
-          <div className="category-badge">
-            📂 {currentQuestion.category}
-          </div>
-          <div className="hint-progress">
-            Gợi ý: {currentHintIndex + 1}/{maxHints}
-          </div>
-        </div>
-
-        {/* Hints Section */}
-        <div className="hints-section">
-          <h3>🔍 Gợi ý:</h3>
-          <div className="hints-list">
-            {visibleHints.map((hint, index) => (
-              <div key={index} className={`hint-item hint-${index + 1}`}>
-                <div className="hint-number">{index + 1}</div>
-                <div className="hint-text">{hint}</div>
-              </div>
-            ))}
-          </div>
           
-          {currentHintIndex < maxHints - 1 && currentHintIndex < currentQuestion.hints.length - 1 && !isAnswered && (
-            <div className="hint-actions">
-              <button
-                onClick={showNextHint}
-                className="next-hint-btn"
-              >
-                💡 Gợi ý tiếp theo
-              </button>
-            </div>
-          )}
+          <Button
+            variant="secondary"
+            onClick={() => setShowStats(true)}
+            className="stats-btn"
+          >
+            📊 Thống kê
+          </Button>
         </div>
 
-        {/* Answer Form */}
-        {!isAnswered && (
-          <div className="answer-section">
-            <form onSubmit={handleSubmit} className="answer-form">
-              <div className="form-group">
-                <label htmlFor="answer-input">
-                  🤔 Bạn nghĩ tôi là ai?
-                </label>
-                <div className="input-container">
-                  <input
-                    ref={inputRef}
-                    id="answer-input"
-                    type="text"
-                    value={guess}
-                    onChange={(e) => setGuess(e.target.value)}
-                    placeholder="Nhập câu trả lời của bạn..."
-                    className="answer-input"
-                    disabled={isAnswered}
-                  />
-                  <button
-                    type="submit"
-                    disabled={!guess.trim() || isAnswered}
-                    className="submit-btn"
-                  >
-                    🎯 Trả lời
-                  </button>
-                </div>
-              </div>
-            </form>
-            
-          </div>
-        )}
-
-        {/* Attempts History */}
-        {attempts.length > 0 && (
-          <div className="attempts-section">
-            <h3>📝 Lịch sử đoán:</h3>
-            <div className="attempts-list">
-              {attempts.map((attempt, index) => (
-                <div key={index} className={`attempt-item ${
-                  attempt.result.isCorrect ? 'correct' : 
-                  attempt.result.isClose ? 'close' : 
-                  attempt.result.isWarm ? 'warm' : 'cold'
-                }`}>
-                  <div className="attempt-guess">
-                    <strong>"{attempt.guess}"</strong>
-                  </div>
-                  <div className="attempt-feedback">
-                    {attempt.result.feedback}
-                    {attempt.result.similarity && (
-                      <span className="similarity">
-                        ({attempt.result.similarity.toFixed(1)}%)
-                      </span>
-                    )}
-                  </div>
+        {/* Main content */}
+        <div className="game-content">
+          <h1 className="game-title">🕵️ Tôi là ai?</h1>
+          
+          {/* Hints section */}
+          <div className="hints-section">
+            <h2>Gợi ý:</h2>
+            <div className="hints-list">
+              {visibleHints.map((hint, index) => (
+                <div key={index} className="hint-item">
+                  <span className="hint-number">{index + 1}.</span>
+                  <span className="hint-text">{hint}</span>
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Instructions */}
-        {attempts.length === 0 && !isAnswered && (
-          <div className="instructions">
-            <h3>🎮 Cách chơi:</h3>
-            <ul>
-              <li>Đọc gợi ý đầu tiên và suy nghĩ</li>
-              <li>Nhập câu trả lời vào ô bên dưới</li>
-              <li>Nếu khó quá, xem thêm gợi ý (nhưng sẽ bị trừ điểm)</li>
-              <li>Càng ít gợi ý thì điểm càng cao</li>
-              <li>Có thể bỏ qua nếu quá khó</li>
-            </ul>
-          </div>
-        )}
-      </div>
-
-      {/* Result Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={handleCloseModal}
-        title={modalContent.title}
-        className={`result-modal ${modalContent.isSuccess ? 'success' : modalContent.isClose ? 'close' : ''}`}
-      >
-        <div className="modal-content">
-          <p style={{ whiteSpace: 'pre-line' }}>{modalContent.message}</p>
-          
-          <div className="modal-actions">
-            {modalContent.isGameOver ? (
-              <>
-                <button
-                  onClick={handlePlayAgain}
-                  className="action-btn primary"
-                >
-                  🔄 Chơi lại
-                </button>
-                <button
-                  onClick={onBackHome}
-                  className="action-btn secondary"
-                >
-                  🏠 Về trang chủ
-                </button>
-              </>
-            ) : modalContent.showContinue ? (
-              <button
-                onClick={handleContinue}
-                className="action-btn primary"
+            
+            {currentHintIndex < maxHints - 1 && currentHintIndex < currentQuestion.hints.length - 1 && (
+              <Button
+                variant="secondary"
+                onClick={showNextHint}
+                className="hint-btn"
+                disabled={isAnswered}
               >
-                ➡️ Câu tiếp theo
-              </button>
-            ) : (
-              <button
-                onClick={handleCloseModal}
-                className="action-btn secondary"
-              >
-                👍 OK
-              </button>
+                💡 Gợi ý tiếp theo
+              </Button>
             )}
           </div>
-        </div>
-      </Modal>
-
-      {/* Stats Modal */}
-      <Modal
-        isOpen={showStats}
-        onClose={() => setShowStats(false)}
-        title="📊 Thống kê Game"
-        className="stats-modal"
-      >
-        <div className="stats-content">
-          {gameStats && gameStats.totalGames > 0 ? (
-            <>
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <div className="stat-number">{gameStats.totalGames}</div>
-                  <div className="stat-label">Số game đã chơi</div>
-                </div>
-                
-                <div className="stat-card">
-                  <div className="stat-number">{gameStats.bestScore}</div>
-                  <div className="stat-label">Điểm cao nhất</div>
-                </div>
-                
-                <div className="stat-card">
-                  <div className="stat-number">
-                    {gameStats.totalQuestions > 0 ? 
-                      Math.round((gameStats.totalCorrect / gameStats.totalQuestions) * 100) : 0}%
+          
+          {/* Answer form */}
+          <form onSubmit={handleSubmit} className="answer-form">
+            <div className="input-group">
+              <input
+                ref={inputRef}
+                type="text"
+                value={guess}
+                onChange={(e) => setGuess(e.target.value)}
+                placeholder="Nhập câu trả lời của bạn..."
+                disabled={isAnswered || isGameOver}
+                className="answer-input"
+              />
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={!guess.trim() || isAnswered || isGameOver}
+                className="submit-btn"
+              >
+                Trả lời
+              </Button>
+            </div>
+          </form>
+          
+          {/* Previous attempts */}
+          {attempts.length > 0 && (
+            <div className="attempts-section">
+              <h3>Các lần đoán trước:</h3>
+              <div className="attempts-list">
+                {attempts.map((attempt, index) => (
+                  <div
+                    key={index}
+                    className={`attempt-item ${
+                      attempt.result.isCorrect
+                        ? 'correct'
+                        : attempt.result.isClose
+                          ? 'close'
+                          : attempt.result.isWarm
+                            ? 'warm'
+                            : 'wrong'
+                    }`}
+                  >
+                    <span className="attempt-text">{attempt.guess}</span>
+                    <span className="attempt-similarity">
+                      {attempt.result.similarity
+                        ? `${attempt.result.similarity.toFixed(1)}%`
+                        : ''}
+                    </span>
                   </div>
-                  <div className="stat-label">Tỷ lệ đúng</div>
-                </div>
-                
-                <div className="stat-card">
-                  <div className="stat-number">{gameStats.totalCorrect}</div>
-                  <div className="stat-label">Tổng câu đúng</div>
-                </div>
+                ))}
               </div>
-              
-              <div className="last-played">
-                <strong>Lần chơi cuối:</strong> {formatLastPlayed(gameStats.lastPlayed)}
-              </div>
-              
-              <div className="stats-actions">
-                <button
-                  onClick={handleClearStats}
-                  className="action-btn secondary"
-                >
-                  🗑️ Xóa thống kê
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="empty-stats">
-              <p>📈 Chưa có dữ liệu thống kê. Hãy chơi vài game trước!</p>
             </div>
           )}
+          
+          {/* Skip option */}
+          {!isAnswered && (
+            <Button
+              variant="secondary"
+              onClick={handleSkip}
+              className="skip-btn"
+              disabled={isGameOver}
+            >
+              ⏭️ Bỏ qua
+            </Button>
+          )}
         </div>
-      </Modal>
+
+        {/* Modal */}
+        <Modal
+          isOpen={showModal}
+          title={modalContent.title}
+          message={modalContent.message}
+          onClose={handleCloseModal}
+          confirmText={modalContent.showContinue ? "Tiếp tục" : null}
+          onConfirm={modalContent.showContinue ? handleContinue : null}
+          cancelText={modalContent.isGameOver ? "Chơi lại" : modalContent.showContinue ? "Bỏ qua" : "OK"}
+          onCancel={modalContent.isGameOver ? handlePlayAgain : modalContent.showContinue ? handleContinue : handleCloseModal}
+        />
+      </div>
     </div>
   );
 };

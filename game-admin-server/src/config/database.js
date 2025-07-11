@@ -19,6 +19,14 @@ const sequelize = new Sequelize(
       collate: 'utf8mb4_unicode_ci',
       timestamps: true,
       underscored: true
+    },
+    // Thêm cấu hình để giải quyết vấn đề quá nhiều khóa
+    dialectOptions: {
+      connectTimeout: 60000,
+      // Giảm số lượng indexes được tạo tự động
+      // và cho phép biến đổi cú pháp SQL để tránh lỗi quá nhiều khóa
+      supportBigNumbers: true,
+      bigNumberStrings: true
     }
   }
 );

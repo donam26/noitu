@@ -6,6 +6,7 @@ import AIAssistant from './AIAssistant';
 import Button from '../common/Button';
 import { showSuccess, showError } from '../../utils/toast';
 import './AdminPanel.css';
+import { quizAPI, behaviorAPI, knowledgeAPI, questionAPI, authAPI } from '../../services/api';
 
 /**
  * Component AdminPanel - Trang quản trị chính
@@ -14,9 +15,15 @@ import './AdminPanel.css';
  */
 const AdminPanel = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState('quiz');
+  const [isLoadingCounts, setIsLoadingCounts] = useState(false);
+  
+  // State lưu số lượng câu hỏi
+  const [quizCount, setQuizCount] = useState(0);
+  const [behaviorCount, setBehaviorCount] = useState(0);
+  const [knowledgeCount, setKnowledgeCount] = useState(0);
 
   const handleLogout = () => {
-    localStorage.removeItem('adminToken');
+    authAPI.logout();
     onLogout();
   };
 
@@ -25,84 +32,144 @@ const AdminPanel = ({ onLogout }) => {
     console.log(`🤖 AI thêm ${newQuestions.length} câu hỏi ${questionType} mới`);
     
     try {
-      let apiEndpoint;
+      let response;
       let eventName;
-      let fileName;
       
       switch (questionType) {
         case 'behavior':
-          apiEndpoint = 'update-behavior-questions';
+          response = await behaviorAPI.bulkAddQuestions(newQuestions);
           eventName = 'behaviorQuestionsUpdated';
-          fileName = 'behaviorQuestions.js';
           break;
         case 'knowledge':
-          apiEndpoint = 'update-knowledge-questions';
+          response = await knowledgeAPI.bulkAddQuestions(newQuestions);
           eventName = 'knowledgeQuestionsUpdated';
-          fileName = 'knowledgeQuestions.js';
           break;
         default:
-          apiEndpoint = 'update-quiz-questions';
+          response = await quizAPI.bulkAddQuestions(newQuestions);
           eventName = 'questionsUpdated';
-          fileName = 'quizQuestions.js';
       }
-      
-      // Gọi API để cập nhật file
-      const response = await fetch(`http://localhost:3001/api/${apiEndpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newQuestions)
-      });
 
-      if (response.ok) {
-        const result = await response.json();
-        console.log(`✅ Đã cập nhật file ${fileName} thành công`);
-        console.log('📄', result.output);
+      if (response.success) {
+        console.log(`✅ Đã thêm câu hỏi ${questionType} thành công vào database`);
         
         // Emit event để manager tương ứng reload
         window.dispatchEvent(new CustomEvent(eventName));
         console.log(`📡 Đã emit event ${eventName}`);
         
         // Thông báo thành công
-        showSuccess(`✅ Đã thêm ${newQuestions.length} câu hỏi vào file ${fileName}!`);
+        showSuccess(`✅ Đã thêm ${newQuestions.length} câu hỏi ${questionType} vào database!`);
+
+        // Cập nhật lại số lượng câu hỏi sau khi thêm thành công
+        setTimeout(() => loadQuestionCounts(), 1000);
         return true;
       } else {
-        const error = await response.json();
-        throw new Error(error.error || 'Lỗi khi cập nhật file');
+        throw new Error(response.message || 'Lỗi khi thêm câu hỏi');
       }
     } catch (error) {
-      console.error('❌ Lỗi khi cập nhật file:', error);
+      console.error('❌ Lỗi khi thêm câu hỏi:', error);
       showError(`❌ Lỗi: ${error.message}\n\nVui lòng kiểm tra API server có đang chạy không.`);
       return false;
     }
   };
 
-  // Import data để hiển thị số lượng
-  const [quizCount, setQuizCount] = useState(0);
-  const [behaviorCount, setBehaviorCount] = useState(0);
-  const [knowledgeCount, setKnowledgeCount] = useState(0);
-
-  // Load counts
-  useEffect(() => {
-    const loadCounts = async () => {
-      try {
-        const [quiz, behavior, knowledge] = await Promise.all([
-          import('../../data/quizQuestions'),
-          import('../../data/behaviorQuestions'), 
-          import('../../data/knowledgeQuestions')
-        ]);
-        setQuizCount(quiz.quizQuestions?.length || 0);
-        setBehaviorCount(behavior.behaviorQuestions?.length || 0);
-        setKnowledgeCount(knowledge.knowledgeQuestions?.length || 0);
-      } catch (error) {
-        console.log('Không thể load counts:', error);
-      }
-    };
-    loadCounts();
+  // Hàm lấy số lượng câu hỏi từ API
+  const loadQuestionCounts = async () => {
+    // Nếu đang tải dữ liệu, không gọi API lần nữa
+    if (isLoadingCounts) return;
     
-    // Chỉ load một lần khi component mount
-  }, []); // Empty dependency array
+    setIsLoadingCounts(true);
+    console.log('🔄 Đang tải số lượng câu hỏi từ API...');
+    
+    try {
+      // Gọi API với timeout để tránh treo
+      const fetchWithTimeout = async (apiCall) => {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          
+          const response = await apiCall();
+          clearTimeout(timeoutId);
+          return response;
+        } catch (err) {
+          console.error(`🛑 Lỗi khi gọi API:`, err);
+          return { success: false, error: err.message };
+        }
+      };
+      
+      // Gọi API để lấy tổng số lượng
+      const [quizResponse, behaviorResponse, knowledgeResponse] = await Promise.allSettled([
+        fetchWithTimeout(() => quizAPI.getQuestions(1, 1)),
+        fetchWithTimeout(() => behaviorAPI.getQuestions(1, 1)),
+        fetchWithTimeout(() => knowledgeAPI.getQuestions(1, 1))
+      ]);
+      
+      // Xử lý kết quả cho quiz
+      if (quizResponse.status === 'fulfilled' && quizResponse.value.success) {
+        const total = quizResponse.value.data?.pagination?.total || 0;
+        console.log(`📊 Số câu hỏi Quiz: ${total}`);
+        setQuizCount(total);
+      }
+      
+      // Xử lý kết quả cho behavior
+      if (behaviorResponse.status === 'fulfilled' && behaviorResponse.value.success) {
+        const total = behaviorResponse.value.data?.pagination?.total || 0;
+        console.log(`📊 Số câu hỏi Behavior: ${total}`);
+        setBehaviorCount(total);
+      }
+      
+      // Xử lý kết quả cho knowledge
+      if (knowledgeResponse.status === 'fulfilled' && knowledgeResponse.value.success) {
+        const total = knowledgeResponse.value.data?.pagination?.total || 0;
+        console.log(`📊 Số câu hỏi Knowledge: ${total}`);
+        setKnowledgeCount(total);
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi lấy số lượng câu hỏi:', error);
+    } finally {
+      setIsLoadingCounts(false);
+    }
+  };
+
+  // Load số lượng câu hỏi khi component mount
+  useEffect(() => {
+    // Gọi API để lấy số lượng câu hỏi khi component mount
+    loadQuestionCounts();
+    
+    // Không thêm các event listeners vào đây để tránh gọi API quá nhiều lần
+  }, []);
+  
+  // Đăng ký event listener riêng cho các sự kiện cập nhật
+  useEffect(() => {
+    const handleQuestionsUpdated = () => {
+      console.log('📣 Đã nhận sự kiện cập nhật câu hỏi');
+      // Đặt timeout để đảm bảo dữ liệu đã được cập nhật trên server
+      setTimeout(() => loadQuestionCounts(), 500);
+    };
+    
+    // Đăng ký lắng nghe sự kiện
+    window.addEventListener('questionsUpdated', handleQuestionsUpdated);
+    window.addEventListener('behaviorQuestionsUpdated', handleQuestionsUpdated);
+    window.addEventListener('knowledgeQuestionsUpdated', handleQuestionsUpdated);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('questionsUpdated', handleQuestionsUpdated);
+      window.removeEventListener('behaviorQuestionsUpdated', handleQuestionsUpdated);
+      window.removeEventListener('knowledgeQuestionsUpdated', handleQuestionsUpdated);
+    };
+  }, []);
+  
+  // Theo dõi sự thay đổi của tab để cập nhật số lượng nếu cần
+  useEffect(() => {
+    // Chỉ tải lại số lượng khi chuyển tab và chưa có dữ liệu
+    if (activeTab === 'quiz' && quizCount === 0) {
+      loadQuestionCounts();
+    } else if (activeTab === 'behavior' && behaviorCount === 0) {
+      loadQuestionCounts();
+    } else if (activeTab === 'knowledge' && knowledgeCount === 0) {
+      loadQuestionCounts();
+    }
+  }, [activeTab, quizCount, behaviorCount, knowledgeCount]);
 
   const tabs = [
     {
@@ -157,7 +224,9 @@ const AdminPanel = ({ onLogout }) => {
               <div className="nav-content">
                 <span className="nav-label">{tab.label}</span>
                 {tab.count !== null && (
-                  <span className="nav-count">{tab.count} câu hỏi</span>
+                  <span className="nav-count">
+                    {isLoadingCounts ? '...' : `${tab.count} câu hỏi`}
+                  </span>
                 )}
               </div>
             </button>

@@ -5,13 +5,13 @@ import Modal from '../common/Modal';
 import { 
   checkAnswer,
   calculateQuizScore,
-  getNewQuestion,
   isGameFinished,
   getAccuracyPercentage,
   getPerformanceMessage,
   shuffleOptions
 } from '../../utils/quizLogic';
 import { GAME_CONFIG } from '../../utils/constants';
+import useQuizData from '../../hooks/useQuizData';
 import './QuizScreen.css';
 
 /**
@@ -24,7 +24,6 @@ const QuizScreen = ({ onBackHome }) => {
   const [currentOptions, setCurrentOptions] = useState([]);
   const [currentCorrectIndex, setCurrentCorrectIndex] = useState(-1);
   const [selectedAnswer, setSelectedAnswer] = useState(-1);
-  const [usedQuestions, setUsedQuestions] = useState([]);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [totalScore, setTotalScore] = useState(0);
   const [questionNumber, setQuestionNumber] = useState(1);
@@ -33,6 +32,16 @@ const QuizScreen = ({ onBackHome }) => {
   const [modalContent, setModalContent] = useState({});
   const [gameStarted, setGameStarted] = useState(false);
   const [isAnswered, setIsAnswered] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Sử dụng custom hook để lấy dữ liệu
+  const {
+    loading,
+    error,
+    usedQuestions,
+    getRandomQuestion,
+    resetUsedQuestions
+  } = useQuizData();
   
   const timerKey = useRef(0);
   const maxQuestions = 10;
@@ -45,30 +54,52 @@ const QuizScreen = ({ onBackHome }) => {
   /**
    * Tải câu hỏi mới
    */
-  const loadNewQuestion = () => {
-    const questionData = getNewQuestion(usedQuestions);
+  const loadNewQuestion = async () => {
+    setIsLoading(true);
     
-    if (!questionData || isGameFinished(usedQuestions, maxQuestions)) {
+    // Kiểm tra game kết thúc
+    if (isGameFinished(usedQuestions, maxQuestions)) {
       endGame();
+      setIsLoading(false);
       return;
     }
-
-    const { question, index } = questionData;
     
-    // Xáo trộn các lựa chọn
-    const { shuffledOptions, newCorrectIndex } = shuffleOptions(
-      question.options, 
-      question.correctAnswer
-    );
-    
-    setCurrentQuestion(question);
-    setCurrentOptions(shuffledOptions);
-    setCurrentCorrectIndex(newCorrectIndex);
-    setSelectedAnswer(-1);
-    setIsAnswered(false);
-    setGameStarted(true);
-    setUsedQuestions(prev => [...prev, index]);
-    timerKey.current += 1; // Reset timer
+    try {
+      const result = await getRandomQuestion();
+      
+      if (!result) {
+        endGame();
+        setIsLoading(false);
+        return;
+      }
+      
+      const { question } = result;
+      
+      // Xáo trộn các lựa chọn
+      const { shuffledOptions, newCorrectIndex } = shuffleOptions(
+        question.options, 
+        question.correctAnswer
+      );
+      
+      setCurrentQuestion(question);
+      setCurrentOptions(shuffledOptions);
+      setCurrentCorrectIndex(newCorrectIndex);
+      setSelectedAnswer(-1);
+      setIsAnswered(false);
+      setGameStarted(true);
+      timerKey.current += 1; // Reset timer
+    } catch (err) {
+      console.error('Lỗi khi tải câu hỏi mới:', err);
+      
+      setModalContent({
+        title: 'Lỗi',
+        message: 'Không thể tải câu hỏi. Vui lòng thử lại sau.',
+        isError: true
+      });
+      setShowModal(true);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   /**
@@ -175,7 +206,7 @@ const QuizScreen = ({ onBackHome }) => {
    * Chơi lại
    */
   const handlePlayAgain = () => {
-    setUsedQuestions([]);
+    resetUsedQuestions();
     setCorrectAnswers(0);
     setTotalScore(0);
     setQuestionNumber(1);
@@ -185,10 +216,35 @@ const QuizScreen = ({ onBackHome }) => {
     loadNewQuestion();
   };
 
-  if (!currentQuestion) {
+  // Hiển thị trạng thái loading
+  if (isLoading || loading) {
     return (
       <div className="quiz-screen">
         <div className="loading">Đang tải câu hỏi...</div>
+      </div>
+    );
+  }
+  
+  // Hiển thị lỗi
+  if (error && !currentQuestion) {
+    return (
+      <div className="quiz-screen">
+        <div className="error">
+          <h3>Không thể tải câu hỏi</h3>
+          <p>{error}</p>
+          <Button variant="primary" onClick={() => window.location.reload()}>
+            Tải lại
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Hiển thị khi không có câu hỏi
+  if (!currentQuestion) {
+    return (
+      <div className="quiz-screen">
+        <div className="loading">Đang khởi tạo game...</div>
       </div>
     );
   }
@@ -249,7 +305,7 @@ const QuizScreen = ({ onBackHome }) => {
               <span className="option-letter">
                 {String.fromCharCode(65 + index)}.
               </span>
-              <span className="option-text">{option}</span>
+              {option}
             </button>
           ))}
         </div>
@@ -272,8 +328,11 @@ const QuizScreen = ({ onBackHome }) => {
           isOpen={showModal}
           title={modalContent.title}
           message={modalContent.message}
-          onClose={handleCloseModal}
-          cancelText={modalContent.isGameOver ? "Đóng" : "Tiếp tục"}
+          onClose={modalContent.isGameOver ? null : handleCloseModal}
+          confirmText={modalContent.isGameOver ? "Chơi lại" : null}
+          onConfirm={modalContent.isGameOver ? handlePlayAgain : null}
+          cancelText={modalContent.isGameOver ? "Về trang chủ" : "OK"}
+          onCancel={modalContent.isGameOver ? onBackHome : handleCloseModal}
         />
       </div>
     </div>

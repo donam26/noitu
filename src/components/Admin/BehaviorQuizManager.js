@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
 import { showSuccess, showError, showInfo } from '../../utils/toast';
-import { getAuthHeaders } from '../../utils/auth';
 import './QuizManager.css';
+import { behaviorAPI } from '../../services/api';
 
 /**
  * Component BehaviorQuizManager - Quản lý CRUD câu hỏi Vua Ứng Xử
@@ -22,7 +21,6 @@ const BehaviorQuizManager = () => {
   const [totalPages, setTotalPages] = useState(1);
 
   const itemsPerPage = 5;
-  const API_URL = 'http://localhost:3001/api';
 
   // Khởi tạo dữ liệu từ API
   useEffect(() => {
@@ -44,28 +42,23 @@ const BehaviorQuizManager = () => {
   const fetchQuestions = async (signal) => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/behavior`, {
-        params: {
-          page: currentPage,
-          limit: itemsPerPage,
-          search: searchTerm
-        },
-        ...getAuthHeaders(),
-        signal
+      // Sử dụng service API thay vì gọi axios trực tiếp
+      const response = await behaviorAPI.getQuestions(currentPage, itemsPerPage, {
+        search: searchTerm
       });
 
-      if (response.data.success) {
-        const { questions, pagination } = response.data.data;
+      if (response.success) {
+        const { questions, pagination } = response.data;
         setQuestions(questions);
         setTotalQuestions(pagination.total);
         setTotalPages(pagination.pages);
         console.log(`📚 Đã tải ${questions.length}/${pagination.total} câu hỏi ứng xử`);
+      } else {
+        showError(response.message || 'Không thể tải danh sách câu hỏi');
       }
     } catch (error) {
-      if (!axios.isCancel(error)) {
-        console.error('Lỗi khi tải câu hỏi ứng xử:', error);
-        showError('Không thể tải danh sách câu hỏi. Vui lòng thử lại sau.');
-      }
+      console.error('Lỗi khi tải câu hỏi ứng xử:', error);
+      showError('Không thể tải danh sách câu hỏi. Vui lòng thử lại sau.');
     } finally {
       setLoading(false);
     }
@@ -120,22 +113,23 @@ const BehaviorQuizManager = () => {
 
   const confirmDelete = async () => {
     try {
-      const response = await axios.delete(`${API_URL}/behavior/${questionToDelete.id}`, getAuthHeaders());
+      // Sử dụng service API thay vì gọi axios trực tiếp
+      const response = await behaviorAPI.deleteQuestion(questionToDelete.id);
 
-      if (response.data.success) {
+      if (response.success) {
         console.log('✅ Đã xóa câu hỏi ứng xử thành công');
         
         // Cập nhật danh sách câu hỏi
         fetchQuestions();
         
         // Hiển thị thông báo thành công
-        showSuccess('Đã xóa câu hỏi thành công!');
+        showSuccess(response.message || 'Đã xóa câu hỏi thành công!');
       } else {
-        throw new Error('Lỗi khi xóa câu hỏi ứng xử');
+        throw new Error(response.message || 'Lỗi khi xóa câu hỏi ứng xử');
       }
     } catch (error) {
       console.error('❌ Lỗi:', error);
-      showError(`Không thể xóa: ${error.response?.data?.message || error.message}`);
+      showError(`Không thể xóa: ${error.message}`);
     }
     
     setShowDeleteConfirm(false);
@@ -163,19 +157,23 @@ const BehaviorQuizManager = () => {
 
       if (editingQuestion) {
         // Cập nhật câu hỏi hiện có
-        response = await axios.put(`${API_URL}/behavior/${editingQuestion.id}`, questionData, getAuthHeaders());
+        response = await behaviorAPI.updateQuestion(editingQuestion.id, questionData);
 
-        if (response.data.success) {
+        if (response.success) {
           console.log('✅ Đã cập nhật câu hỏi ứng xử thành công');
-          showSuccess('Đã cập nhật câu hỏi thành công!');
+          showSuccess(response.message || 'Đã cập nhật câu hỏi thành công!');
+        } else {
+          throw new Error(response.message || 'Lỗi khi cập nhật câu hỏi');
         }
       } else {
         // Thêm câu hỏi mới
-        response = await axios.post(`${API_URL}/behavior`, questionData, getAuthHeaders());
+        response = await behaviorAPI.addQuestion(questionData);
 
-        if (response.data.success) {
+        if (response.success) {
           console.log('✅ Đã thêm câu hỏi ứng xử mới thành công');
-          showSuccess('Đã thêm câu hỏi mới thành công!');
+          showSuccess(response.message || 'Đã thêm câu hỏi mới thành công!');
+        } else {
+          throw new Error(response.message || 'Lỗi khi thêm câu hỏi');
         }
       }
 
@@ -187,7 +185,7 @@ const BehaviorQuizManager = () => {
       resetForm();
     } catch (error) {
       console.error('❌ Lỗi:', error);
-      showError(`Không thể lưu: ${error.response?.data?.message || error.message}`);
+      showError(`Không thể lưu: ${error.message}`);
     }
   };
 
@@ -203,298 +201,246 @@ const BehaviorQuizManager = () => {
     updateFormData('options', newOptions);
   };
 
-  // Tìm kiếm câu hỏi
   const handleSearch = () => {
-    setCurrentPage(1);
+    setCurrentPage(1); // Quay về trang 1 khi tìm kiếm
     fetchQuestions();
   };
 
-  // Export dữ liệu
-  const handleExport = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/behavior`, {
-        params: { limit: 1000 }, // Lấy tất cả câu hỏi
-        ...getAuthHeaders()
-      });
-
-      if (response.data.success) {
-        const allQuestions = response.data.data.questions;
-        const formattedQuestions = allQuestions.map(q => ({
-          question: q.question,
-          options: q.options,
-          correctAnswer: q.correct_answer,
-          explanation: q.explanation,
-          category: q.category,
-          difficulty: q.difficulty
-        }));
-        
-        const dataStr = JSON.stringify(formattedQuestions, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'behavior_questions_export.json';
-        link.click();
-        
-        showSuccess(`Đã export ${formattedQuestions.length} câu hỏi ứng xử!`);
-      }
-    } catch (error) {
-      console.error('❌ Lỗi khi export:', error);
-      showError(`Không thể export: ${error.response?.data?.message || error.message}`);
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
     }
   };
 
+  const difficultyLabels = {
+    easy: '🟢 Dễ',
+    medium: '🟡 Trung bình',
+    hard: '🔴 Khó'
+  };
+
+  // Render component
   return (
-    <div className="quiz-manager">
+    <div className="quiz-manager behavior-manager">
       <div className="quiz-header">
         <div className="quiz-title">
-          <h2>🤝 Quản lý Câu hỏi Ứng Xử</h2>
-          <p>Tổng số: {totalQuestions} câu hỏi về đạo đức và giáo dục công dân</p>
+          <h2>🤝 Quản lý câu hỏi "Vua Ứng Xử"</h2>
+          <p>Tổng số câu hỏi: {totalQuestions}</p>
         </div>
+        
+        <div className="search-box">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyPress={handleSearchKeyPress}
+            placeholder="Tìm kiếm câu hỏi..."
+          />
+          <Button onClick={handleSearch}>🔍 Tìm kiếm</Button>
+        </div>
+        
         <div className="quiz-actions">
-          <Button
-            variant="secondary"
-            onClick={handleExport}
-            className="export-btn"
-          >
-            📥 Export JSON
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleAdd}
-            className="add-btn"
-          >
+          <Button onClick={handleAdd} className="add-btn">
             ➕ Thêm câu hỏi
           </Button>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="search-section">
-        <input
-          type="text"
-          placeholder="🔍 Tìm kiếm câu hỏi..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-          className="search-input"
-        />
-        <Button variant="secondary" onClick={handleSearch}>Tìm kiếm</Button>
-      </div>
-
-      {/* Loading state */}
-      {loading && (
-        <div className="loading-container">
+      {loading ? (
+        <div className="loading">
           <p>Đang tải dữ liệu...</p>
         </div>
-      )}
-
-      {/* Questions List */}
-      <div className="questions-list">
-        {!loading && questions.length > 0 ? (
-          questions.map((question, index) => (
-            <div key={question.id} className="question-card">
-              <div className="question-header">
-                <div className="question-number">
-                  #{(currentPage - 1) * itemsPerPage + index + 1}
-                </div>
-                <div className="question-actions">
-                  <button
-                    className="edit-btn"
-                    onClick={() => handleEdit(question)}
-                    title="Chỉnh sửa"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    className="delete-btn"
-                    onClick={() => handleDelete(question)}
-                    title="Xóa"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-              
-              <div className="question-content">
-                <h4>{question.question}</h4>
-                <div className="options-grid">
-                  {question.options.map((option, optIndex) => (
-                    <div
-                      key={optIndex}
-                      className={`option-item ${
-                        optIndex === question.correct_answer ? 'correct' : ''
-                      }`}
-                    >
-                      <span className="option-letter">
-                        {String.fromCharCode(65 + optIndex)}.
-                      </span>
-                      <span className="option-text">{option}</span>
-                      {optIndex === question.correct_answer && (
-                        <span className="correct-badge">✓</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {question.explanation && (
-                  <div className="explanation">
-                    <strong>💡 Giải thích:</strong> {question.explanation}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
-        ) : !loading && (
-          <div className="empty-state">
-            <p>🔍 Không tìm thấy câu hỏi nào</p>
-          </div>
-        )}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="pagination">
-          <Button
-            variant="secondary"
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-          >
-            ← Trước
-          </Button>
-          
-          <span className="page-info">
-            Trang {currentPage} / {totalPages}
-          </span>
-          
-          <Button
-            variant="secondary"
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-            disabled={currentPage === totalPages}
-          >
-            Sau →
-          </Button>
+      ) : questions.length === 0 ? (
+        <div className="empty-state">
+          <p>Chưa có câu hỏi nào. Hãy thêm câu hỏi mới!</p>
         </div>
-      )}
-
-      {/* Add/Edit Modal */}
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="quiz-modal">
-            <div className="modal-header">
-              <h3>
-                {editingQuestion ? '✏️ Chỉnh sửa câu hỏi ứng xử' : '➕ Thêm câu hỏi ứng xử'}
-              </h3>
+      ) : (
+        <>
+          <div className="questions-list">
+            {questions.map((question) => (
+              <div key={question.id} className="question-card">
+                <div className="question-header">
+                  <div className="question-info">
+                    <span className="question-number">#{question.id}</span>
+                    <span className={`question-difficulty ${question.difficulty}`}>
+                      {difficultyLabels[question.difficulty] || '🟡 Trung bình'}
+                    </span>
+                    {question.category && (
+                      <span className="question-category">📂 {question.category}</span>
+                    )}
+                  </div>
+                  <div className="question-actions">
+                    <button 
+                      className="edit-btn" 
+                      onClick={() => handleEdit(question)}
+                      title="Sửa câu hỏi"
+                    >
+                      ✏️
+                    </button>
+                    <button 
+                      className="delete-btn" 
+                      onClick={() => handleDelete(question)}
+                      title="Xóa câu hỏi"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="question-content">
+                  <h3>{question.question}</h3>
+                  <div className="options-list">
+                    {question.options.map((option, index) => (
+                      <div 
+                        key={index} 
+                        className={`option ${index === question.correct_answer ? 'correct' : ''}`}
+                      >
+                        {String.fromCharCode(65 + index)}. {option}
+                        {index === question.correct_answer && <span className="correct-badge">✓</span>}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {question.explanation && (
+                    <div className="explanation">
+                      <strong>Giải thích:</strong> {question.explanation}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Phân trang */}
+          {totalPages > 1 && (
+            <div className="pagination">
               <button
-                className="close-btn"
-                onClick={() => setShowModal(false)}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage <= 1}
               >
-                ✕
+                &laquo; Trước
+              </button>
+              <span>
+                Trang {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage >= totalPages}
+              >
+                Sau &raquo;
               </button>
             </div>
-
-            <div className="modal-content">
-              <div className="form-group">
-                <label>Câu hỏi ứng xử *</label>
-                <textarea
-                  value={formData.question}
-                  onChange={(e) => updateFormData('question', e.target.value)}
-                  placeholder="Nhập câu hỏi về đạo đức, ứng xử, giáo dục công dân..."
-                  rows="3"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Các lựa chọn *</label>
-                {formData.options.map((option, index) => (
-                  <div key={index} className="option-input">
-                    <span className="option-prefix">
-                      {String.fromCharCode(65 + index)}.
-                    </span>
-                    <input
-                      type="text"
-                      value={option}
-                      onChange={(e) => updateOption(index, e.target.value)}
-                      placeholder={`Lựa chọn ${String.fromCharCode(65 + index)}`}
-                      required
-                    />
-                    <input
-                      type="radio"
-                      name="correctAnswer"
-                      checked={formData.correctAnswer === index}
-                      onChange={() => updateFormData('correctAnswer', index)}
-                      title="Đáp án đúng"
-                    />
-                  </div>
-                ))}
-                <p className="help-text">📌 Chọn radio button bên cạnh đáp án đúng</p>
-              </div>
-
-              <div className="form-group">
-                <label>Giải thích (tuỳ chọn)</label>
-                <textarea
-                  value={formData.explanation}
-                  onChange={(e) => updateFormData('explanation', e.target.value)}
-                  placeholder="Giải thích tại sao đáp án này đúng và tầm quan trọng của hành vi này..."
-                  rows="2"
-                />
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Danh mục (tuỳ chọn)</label>
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => updateFormData('category', e.target.value)}
-                    placeholder="Ví dụ: Đạo đức, Lễ nghĩa, Giao tiếp..."
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Độ khó</label>
-                  <select
-                    value={formData.difficulty}
-                    onChange={(e) => updateFormData('difficulty', e.target.value)}
-                  >
-                    <option value="easy">Dễ</option>
-                    <option value="medium">Trung bình</option>
-                    <option value="hard">Khó</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <Button
-                variant="primary"
-                onClick={handleSave}
-                className="save-btn"
-              >
-                💾 {editingQuestion ? 'Cập nhật' : 'Thêm'}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setShowModal(false)}
-                className="cancel-btn"
-              >
-                ❌ Hủy
-              </Button>
-            </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
 
-      {/* Delete Confirmation */}
+      {/* Modal thêm/sửa câu hỏi */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title={editingQuestion ? "Sửa câu hỏi" : "Thêm câu hỏi mới"}
+      >
+        <div className="question-form">
+          <div className="form-group">
+            <label htmlFor="question">Câu hỏi:</label>
+            <textarea
+              id="question"
+              value={formData.question}
+              onChange={(e) => updateFormData('question', e.target.value)}
+              placeholder="Nhập câu hỏi..."
+            />
+          </div>
+          
+          <div className="form-group options-group">
+            <label>Các phương án trả lời:</label>
+            {formData.options.map((option, index) => (
+              <div key={index} className="option-input">
+                <span className="option-label">
+                  {String.fromCharCode(65 + index)}
+                </span>
+                <input
+                  type="text"
+                  value={option}
+                  onChange={(e) => updateOption(index, e.target.value)}
+                  placeholder={`Phương án ${String.fromCharCode(65 + index)}...`}
+                />
+                <input
+                  type="radio"
+                  name="correctAnswer"
+                  value={index}
+                  checked={formData.correctAnswer === index}
+                  onChange={() => updateFormData('correctAnswer', index)}
+                  title="Chọn đáp án đúng"
+                />
+              </div>
+            ))}
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="category">Danh mục:</label>
+              <input
+                type="text"
+                id="category"
+                value={formData.category}
+                onChange={(e) => updateFormData('category', e.target.value)}
+                placeholder="Danh mục câu hỏi (tùy chọn)"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="difficulty">Độ khó:</label>
+              <select
+                id="difficulty"
+                value={formData.difficulty}
+                onChange={(e) => updateFormData('difficulty', e.target.value)}
+              >
+                <option value="easy">Dễ</option>
+                <option value="medium">Trung bình</option>
+                <option value="hard">Khó</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="form-group">
+            <label htmlFor="explanation">Giải thích (không bắt buộc):</label>
+            <textarea
+              id="explanation"
+              value={formData.explanation}
+              onChange={(e) => updateFormData('explanation', e.target.value)}
+              placeholder="Giải thích đáp án..."
+            />
+          </div>
+          
+          <div className="form-actions">
+            <Button onClick={() => setShowModal(false)} variant="secondary">
+              Hủy bỏ
+            </Button>
+            <Button onClick={handleSave}>
+              {editingQuestion ? "Lưu thay đổi" : "Thêm câu hỏi"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal xác nhận xóa */}
       <Modal
         isOpen={showDeleteConfirm}
-        title="🗑️ Xác nhận xóa câu hỏi ứng xử"
-        message={`Bạn có chắc muốn xóa câu hỏi: "${questionToDelete?.question}"?`}
-        onConfirm={confirmDelete}
         onClose={() => setShowDeleteConfirm(false)}
-        confirmText="Xác nhận"
-        cancelText="Hủy"
-      />
+        title="Xác nhận xóa"
+        size="small"
+      >
+        <div className="confirm-delete">
+          <p>Bạn có chắc chắn muốn xóa câu hỏi này không?</p>
+          <div className="form-actions">
+            <Button onClick={() => setShowDeleteConfirm(false)} variant="secondary">
+              Hủy bỏ
+            </Button>
+            <Button onClick={confirmDelete} variant="danger">
+              Xóa câu hỏi
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

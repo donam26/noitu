@@ -127,54 +127,6 @@ const AIAssistant = ({ onAddQuestions }) => {
     } catch (error) {
       console.error('Error:', error);
       
-      // Fallback mock data theo loại câu hỏi
-      const mockQuestions = {
-        quiz: [
-          {
-            question: "Nếu bạn có 10 ngón tay và cắt đi 2 ngón, bạn còn bao nhiêu ngón tay?",
-            options: ["8 ngón", "10 ngón", "2 ngón", "Không còn ngón nào"],
-            correctAnswer: 1,
-            explanation: "Bạn vẫn có 10 ngón tay! Chỉ cắt đi 2 ngón chứ không phải mất 2 ngón."
-          },
-          {
-            question: "Cái gì càng nhiều càng ít thấy?",
-            options: ["Ánh sáng", "Bóng tối", "Sương mù", "Nước"],
-            correctAnswer: 2,
-            explanation: "Sương mù càng nhiều thì tầm nhìn càng hạn chế!"
-          }
-        ],
-        behavior: [
-          {
-            question: "Khi thấy bạn bị bắt nạt ở trường, em nên làm gì?",
-            options: ["Im lặng và bỏ qua", "Cười và chế nhạo", "Báo cho thầy cô và an ủi bạn", "Tham gia cùng bắt nạt"],
-            correctAnswer: 2,
-            explanation: "Chúng ta nên giúp đỡ bạn bè khi gặp khó khăn và báo cho người lớn."
-          },
-          {
-            question: "Khi đi trên đường thấy có rác, em nên?",
-            options: ["Đi qua không quan tâm", "Nhặt lên bỏ vào thùng rác", "Đá cho xa hơn", "Chụp ảnh đăng mạng"],
-            correctAnswer: 1,
-            explanation: "Mỗi người có trách nhiệm giữ gìn môi trường sống chung."
-          }
-        ],
-        knowledge: [
-          {
-            question: "Tại sao bầu trời có màu xanh?",
-            options: ["Vì phản chiếu đại dương", "Vì ánh sáng xanh bị tán xạ nhiều nhất", "Vì có khí oxy", "Vì có mây xanh"],
-            correctAnswer: 1,
-            explanation: "Ánh sáng xanh có bước sóng ngắn nên bị tán xạ mạnh nhất trong khí quyển."
-          },
-          {
-            question: "Động vật nào có tim to nhất thế giới?",
-            options: ["Voi châu Phi", "Cá voi xanh", "Khủng long", "Hà mã"],
-            correctAnswer: 1,
-            explanation: "Tim của cá voi xanh có thể nặng đến 180kg và to bằng một chiếc ô tô nhỏ."
-          }
-        ]
-      };
-
-      setGeneratedQuestions(mockQuestions[questionType] || mockQuestions.quiz);
-      setSelectedQuestions(new Set());
     } finally {
       setIsGenerating(false);
     }
@@ -213,27 +165,6 @@ const AIAssistant = ({ onAddQuestions }) => {
     setSelectedQuestions(newSelected);
   };
 
-  // Export câu hỏi đã chọn
-  const exportSelected = () => {
-    if (selectedQuestions.size === 0) {
-      alert('⚠️ Vui lòng chọn ít nhất 1 câu hỏi!');
-      return;
-    }
-
-    const selectedData = Array.from(selectedQuestions).map(index => 
-      generatedQuestions[index]
-    );
-
-    const dataStr = JSON.stringify(selectedData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `ai_generated_${questionType}_questions.json`;
-    link.click();
-
-    alert(`✅ Đã export ${selectedQuestions.size} câu hỏi!`);
-  };
 
   const questionTypeLabels = {
     quiz: { icon: '🤪', title: 'Vua Hỏi Ngu', desc: 'Câu hỏi vui nhộn và hài hước' },
@@ -319,13 +250,6 @@ const AIAssistant = ({ onAddQuestions }) => {
                  className="add-btn"
                >
                  ➕ Thêm vào hệ thống ({selectedQuestions.size})
-               </Button>
-               <Button
-                 variant="secondary"
-                 onClick={exportSelected}
-                 disabled={selectedQuestions.size === 0}
-               >
-                 📥 Export JSON
                </Button>
              </div>
           </div>

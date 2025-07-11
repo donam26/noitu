@@ -1,19 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const knowledgeQuizController = require('../controllers/knowledgeQuizController');
-const { authenticate, isAdmin } = require('../middleware/auth');
+const knowledgeController = require('../controllers/knowledgeQuizController');
+const { authenticate } = require('../middleware/auth');
 
-// Tất cả routes đều yêu cầu authenticate
-router.use(authenticate);
+// Public routes
+router.get('/', knowledgeController.getQuestions);
+router.post('/random', knowledgeController.getRandomQuestion);
 
-// CRUD routes
-router.get('/', knowledgeQuizController.getQuestions);
-router.post('/', isAdmin, knowledgeQuizController.createQuestion);
-router.put('/:id', isAdmin, knowledgeQuizController.updateQuestion);
-router.delete('/:id', isAdmin, knowledgeQuizController.deleteQuestion);
+// Protected routes
+router.post('/', authenticate, knowledgeController.createQuestion);
+router.put('/:id', authenticate, knowledgeController.updateQuestion);
+router.delete('/:id', authenticate, knowledgeController.deleteQuestion);
+router.post('/bulk', authenticate, knowledgeController.bulkCreateQuestions);
 
-// Bulk actions
-router.post('/bulk', isAdmin, knowledgeQuizController.bulkCreateQuestions);
-
-// Export để sử dụng trong file index
 module.exports = router; 

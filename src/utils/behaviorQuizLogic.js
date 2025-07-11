@@ -1,4 +1,5 @@
-import { getRandomBehaviorQuestion, getTotalBehaviorQuestions } from '../data/behaviorQuestions';
+// KHÔNG import từ file data nữa
+// import { getRandomBehaviorQuestion, getTotalBehaviorQuestions } from '../data/behaviorQuestions';
 
 /**
  * Kiểm tra đáp án có đúng không
@@ -23,22 +24,14 @@ export const calculateBehaviorScore = (timeLeft, maxTime) => {
 };
 
 /**
- * Lấy câu hỏi mới cho game Vua Ứng Xử
- * @param {Array} usedQuestions - Mảng các câu hỏi đã sử dụng
- * @returns {Object|null} - Câu hỏi mới hoặc null nếu hết câu
- */
-export const getNewBehaviorQuestion = (usedQuestions) => {
-  return getRandomBehaviorQuestion(usedQuestions);
-};
-
-/**
  * Kiểm tra game có kết thúc chưa
  * @param {Array} usedQuestions - Mảng các câu hỏi đã sử dụng
  * @param {number} maxQuestions - Số câu hỏi tối đa cho 1 game (mặc định 10)
+ * @param {number} totalQuestions - Tổng số câu hỏi có sẵn
  * @returns {boolean} - True nếu game kết thúc
  */
-export const isBehaviorGameFinished = (usedQuestions, maxQuestions = 10) => {
-  return usedQuestions.length >= maxQuestions || usedQuestions.length >= getTotalBehaviorQuestions();
+export const isBehaviorGameFinished = (usedQuestions, maxQuestions = 10, totalQuestions = Infinity) => {
+  return usedQuestions.length >= maxQuestions || usedQuestions.length >= totalQuestions;
 };
 
 /**
