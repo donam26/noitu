@@ -1,19 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
-import {
-  checkGuess,
-  isGameFinished,
-  getAccuracyPercentage,
-  getPerformanceMessage,
-  saveGameStats,
-  getGameStats,
-  clearGameStats,
-  getNextHint,
-  generateHintFromGuess,
-  formatLastPlayed
-} from '../../utils/guessWhoLogic';
-import useGameData from '../../hooks/useGameData';
+import { gameDataAPI } from '../../services/api';
+import { GAME_CONFIG } from '../../utils/constants';
+import { showError } from '../../utils/toast';
 import './GuessWhoScreen.css';
 
 /**
@@ -22,6 +12,7 @@ import './GuessWhoScreen.css';
  * @param {Function} props.onBackHome - Callback khi quay về trang chủ
  */
 const GuessWhoScreen = ({ onBackHome }) => {
+  const [guessWhoData, setGuessWhoData] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [currentHintIndex, setCurrentHintIndex] = useState(0);
   const [visibleHints, setVisibleHints] = useState([]);
@@ -33,38 +24,28 @@ const GuessWhoScreen = ({ onBackHome }) => {
   const [isGameOver, setIsGameOver] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState({});
-  const [showStats, setShowStats] = useState(false);
   const [gameStats, setGameStats] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [currentQuestionScore, setCurrentQuestionScore] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Sử dụng custom hook
-  const {
-    loading,
-    error,
-    usedGuessWhoIds,
-    fetchGuessWhoData,
-    getRandomGuessWhoQuestion,
-    resetGuessWhoIds
-  } = useGameData();
+  const [usedCharacterIds, setUsedCharacterIds] = useState([]);
   
   const inputRef = useRef(null);
-  const maxQuestions = 10;
-  const maxHints = 4;
+  const maxQuestions = GAME_CONFIG.GUESS_WHO?.MAX_QUESTIONS || 10;
+  const maxHints = GAME_CONFIG.GUESS_WHO?.MAX_HINTS || 3;
 
   // Load game stats và khởi tạo game
   useEffect(() => {
     loadGameStats();
     fetchGuessWhoData();
-  }, [fetchGuessWhoData]);
+  }, []);
   
   // Load câu hỏi khi dữ liệu đã sẵn sàng
   useEffect(() => {
-    if (!loading && !currentQuestion) {
+    if (guessWhoData && !currentQuestion) {
       loadNewQuestion();
     }
-  }, [loading]);
+  }, [guessWhoData]);
 
   // Focus vào input
   useEffect(() => {
@@ -74,359 +55,577 @@ const GuessWhoScreen = ({ onBackHome }) => {
   }, [currentQuestion, isAnswered]);
 
   /**
-   * Load thống kê game
+   * Lấy dữ liệu cho game GuessWho từ API
    */
-  const loadGameStats = () => {
-    const stats = getGameStats();
-    setGameStats(stats);
+  const fetchGuessWhoData = async () => {
+    try {
+      setIsLoading(true);
+      console.log("Đang tải dữ liệu GuessWho...");
+      const response = await gameDataAPI.getGuessWhoData();
+      
+      console.log("API response:", response);
+      
+      if (!response.success || !response.characters || !Array.isArray(response.characters)) {
+        console.error('Không thể tải dữ liệu GuessWho:', response.message || 'Lỗi không xác định');
+        setModalContent({
+          title: 'Lỗi',
+          message: 'Không thể tải dữ liệu game. Vui lòng thử lại sau.',
+          isError: true
+        });
+        setShowModal(true);
+        return;
+      }
+      
+      // Kiểm tra nếu không có nhân vật nào
+      if (response.characters.length === 0) {
+        setModalContent({
+          title: 'Dữ liệu trống',
+          message: 'Không có nhân vật nào trong cơ sở dữ liệu. Vui lòng liên hệ quản trị viên.',
+          isError: true
+        });
+        setShowModal(true);
+        return;
+      }
+      
+      setGuessWhoData(response.characters);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Lỗi khi lấy dữ liệu GuessWho:', error);
+      setModalContent({
+        title: 'Lỗi kết nối',
+        message: 'Không thể kết nối đến server. Vui lòng thử lại sau.',
+        isError: true
+      });
+      setShowModal(true);
+    }
   };
 
   /**
-   * Load câu đố mới
+   * Tải thống kê game từ localStorage
+   */
+  const loadGameStats = async () => {
+    try {
+      const statsResponse = await gameDataAPI.getGuessWhoStats();
+      if (statsResponse.success) {
+        setGameStats(statsResponse.data);
+      } else {
+        // Khởi tạo stats mới nếu không tìm thấy
+        setGameStats({
+          gamesPlayed: 0,
+          correctAnswers: 0,
+          totalQuestions: 0,
+          averageHintsUsed: 0,
+          lastPlayed: null,
+          categories: {}
+        });
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải thống kê game:', error);
+      setGameStats({
+        gamesPlayed: 0,
+        correctAnswers: 0,
+        totalQuestions: 0,
+        averageHintsUsed: 0,
+        lastPlayed: null,
+        categories: {}
+      });
+    }
+  };
+
+  /**
+   * Lấy câu hỏi ngẫu nhiên từ dữ liệu có sẵn
+   */
+  const getRandomGuessWhoQuestion = () => {
+    if (!guessWhoData || guessWhoData.length === 0) {
+      console.error('Không có dữ liệu để lấy câu hỏi ngẫu nhiên');
+      return null;
+    }
+    
+    // Lọc các nhân vật chưa sử dụng
+    let availableCharacters = guessWhoData.filter(char => !usedCharacterIds.includes(char.id));
+    
+    // Nếu không còn nhân vật nào, reset danh sách đã sử dụng
+    if (availableCharacters.length === 0) {
+      console.log('Đã sử dụng hết nhân vật, reset danh sách');
+      availableCharacters = guessWhoData;
+      setUsedCharacterIds([]);
+    }
+    
+    // Chọn nhân vật ngẫu nhiên
+    const randomIndex = Math.floor(Math.random() * availableCharacters.length);
+    const selectedCharacter = availableCharacters[randomIndex];
+    
+    // Thêm ID vào danh sách đã sử dụng
+    if (selectedCharacter && selectedCharacter.id) {
+      setUsedCharacterIds(prev => [...prev, selectedCharacter.id]);
+    }
+    
+    return selectedCharacter;
+  };
+
+  /**
+   * Tải câu hỏi mới
    */
   const loadNewQuestion = () => {
-    setIsLoading(true);
-    
-    // Safety check để tránh load khi đã game over
     if (isGameOver || questionNumber > maxQuestions) {
       endGame();
-      setIsLoading(false);
       return;
     }
     
-    const question = getRandomGuessWhoQuestion();
+    // Lấy câu hỏi ngẫu nhiên
+    const character = getRandomGuessWhoQuestion();
     
-    if (!question || isGameFinished(usedGuessWhoIds, maxQuestions)) {
-      endGame();
-      setIsLoading(false);
+    if (!character) {
+      setModalContent({
+        title: 'Lỗi',
+        message: 'Không thể tải câu hỏi. Vui lòng thử lại sau.',
+        isError: true
+      });
+      setShowModal(true);
       return;
     }
-
-    // Reset tất cả state cho câu mới
-    setCurrentQuestion(question);
+    
+    // Kiểm tra có gợi ý không
+    if (!character.hints || !Array.isArray(character.hints) || character.hints.length === 0) {
+      console.error('Nhân vật không có gợi ý:', character);
+      setModalContent({
+        title: 'Lỗi dữ liệu',
+        message: 'Dữ liệu nhân vật không hợp lệ. Vui lòng thử lại.',
+        isError: true
+      });
+      setShowModal(true);
+      return;
+    }
+    
+    // Khởi tạo câu hỏi mới
+    setCurrentQuestion(character);
     setCurrentHintIndex(0);
-    setVisibleHints([question.hints[0]]); // Hiển thị gợi ý đầu tiên
-    setGuess('');
+    setVisibleHints([character.hints[0]]);  // Hiển thị gợi ý đầu tiên
     setAttempts([]);
+    setGuess('');
     setIsAnswered(false);
-    setCurrentQuestionScore(0);
-    setIsLoading(false);
+    setCurrentQuestionScore(GAME_CONFIG.GUESS_WHO.SCORE_PER_QUESTION);
     
-    // Focus vào input sau khi load xong và reset placeholder
-    setTimeout(() => {
-      if (inputRef.current && !isAnswered) {
-        inputRef.current.focus();
-        inputRef.current.placeholder = "Nhập câu trả lời của bạn...";
-      }
-    }, 100);
+    console.log('Câu hỏi mới:', character.name);
   };
 
   /**
    * Hiển thị gợi ý tiếp theo
    */
-  const showNextHint = () => {
-    if (currentHintIndex < maxHints - 1 && currentHintIndex < currentQuestion.hints.length - 1) {
-      const nextIndex = currentHintIndex + 1;
-      setCurrentHintIndex(nextIndex);
-      setVisibleHints(prev => [...prev, currentQuestion.hints[nextIndex]]);
-      
-      // Thông báo nhẹ khi đã hết gợi ý
-      if (nextIndex === maxHints - 1 || nextIndex === currentQuestion.hints.length - 1) {
-        setTimeout(() => {
-          if (inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.placeholder = "Đây là gợi ý cuối cùng! Hãy đoán ngay...";
-          }
-        }, 500);
-      }
-    }
-  };
-
-  /**
-   * Xử lý submit câu trả lời
-   */
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (!guess.trim() || isAnswered || isGameOver) return;
-
-    const result = checkGuess(currentQuestion.answer, guess, currentHintIndex + 1);
-    
-    const newAttempt = {
-      guess: guess.trim(),
-      result: result,
-      timestamp: Date.now()
-    };
-    
-    setAttempts(prev => [...prev, newAttempt]);
-
-    if (result.isCorrect) {
-      // Đúng rồi!
-      setIsAnswered(true);
-      setCorrectAnswers(prev => prev + 1);
-      setCurrentQuestionScore(result.score);
-      setGameScore(prev => prev + result.score);
-      
-      const nextQuestionNumber = questionNumber + 1;
-      
+  const showNextHint = async () => {
+    // Kiểm tra nếu đã dùng hết số lần gợi ý cho câu hỏi hiện tại
+    if (currentHintIndex >= maxHints - 1 || currentHintIndex >= currentQuestion.hints.length - 1) {
       setModalContent({
-        title: '🎉 Chính xác!',
-        message: `Đáp án là: "${currentQuestion.answer}"\n\nDanh mục: ${currentQuestion.category}\nĐiểm: ${result.score}\nSố gợi ý đã dùng: ${currentHintIndex + 1}/${maxHints}\n\nCâu tiếp theo: ${nextQuestionNumber}/${maxQuestions}`,
-        isSuccess: true,
-        showContinue: nextQuestionNumber <= maxQuestions
+        title: 'Giới hạn gợi ý',
+        message: `Bạn đã sử dụng tối đa ${maxHints} gợi ý cho câu hỏi này.`,
+        isError: true
       });
       setShowModal(true);
+      return;
+    }
+
+    if (!currentQuestion) {
+      return;
+    }
+
+    const nextHintIndex = currentHintIndex + 1;
+
+    try {
+      const response = await gameDataAPI.getNextHint({
+        characterId: currentQuestion.id,
+        currentHintIndex
+      });
+
+      if (response.success) {
+        // Hiển thị gợi ý mới
+        setCurrentHintIndex(nextHintIndex);
+        setVisibleHints(prev => [...prev, response.data.hint || currentQuestion.hints[nextHintIndex]]);
+      } else {
+        // Fallback nếu API lỗi
+        setCurrentHintIndex(nextHintIndex);
+        setVisibleHints(prev => [...prev, currentQuestion.hints[nextHintIndex]]);
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy gợi ý tiếp theo:', error);
+      // Fallback khi có lỗi
+      const nextHintIndex = currentHintIndex + 1;
+      setCurrentHintIndex(nextHintIndex);
+      setVisibleHints(prev => [...prev, currentQuestion.hints[nextHintIndex]]);
+    }
+  };
+
+  /**
+   * Xử lý khi người chơi gửi câu trả lời
+   */
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!guess.trim() || isAnswered || !currentQuestion) return;
+    
+    const currentAttempt = guess.trim();
+    
+    try {
+      // Gửi câu trả lời đến API để kiểm tra
+      const response = await gameDataAPI.checkGuessWhoAnswer({
+        characterId: currentQuestion.id,
+        guess: currentAttempt,
+        currentHintIndex: currentHintIndex
+      });
       
-    } else {
-      // Sai rồi, có feedback
-      if (result.isClose || result.isWarm) {
-        // Gần đúng, thêm gợi ý thông minh
-        const smartHint = generateHintFromGuess(currentQuestion.answer, guess);
+      if (response.success) {
+        const isCorrect = response.data.correct;
+        const feedback = response.data.feedback || generateFeedback(currentAttempt, currentQuestion.name);
         
-        setModalContent({
-          title: result.feedback,
-          message: `${smartHint}\n\nĐộ tương tự: ${result.similarity.toFixed(1)}%`,
-          isClose: true
-        });
-        setShowModal(true);
+        // Thêm vào danh sách đã thử
+        setAttempts(prev => [...prev, { 
+          text: currentAttempt, 
+          isCorrect,
+          feedback: feedback,
+          hintsUsed: currentHintIndex + 1 // Lưu số gợi ý đã sử dụng
+        }]);
+        
+        if (isCorrect) {
+          // Đáp án đúng
+          handleCorrectAnswer();
+        } else {
+          // Đáp án sai - hiển thị toast thông báo với phản hồi
+          showError(`${feedback}`);
+          setGuess('');
+        }
+      } else {
+        console.error('Lỗi khi kiểm tra câu trả lời:', response.message);
+        
+        // Fallback khi API lỗi
+        const userGuess = currentAttempt.toLowerCase();
+        const correctAnswer = currentQuestion.name.toLowerCase();
+        const isCorrect = userGuess === correctAnswer;
+        const feedback = generateFeedback(currentAttempt, currentQuestion.name);
+        
+        setAttempts(prev => [...prev, { 
+          text: currentAttempt, 
+          isCorrect,
+          feedback: feedback,
+          hintsUsed: currentHintIndex + 1 // Lưu số gợi ý đã sử dụng
+        }]);
+        
+        if (isCorrect) {
+          handleCorrectAnswer();
+        } else {
+          // Đáp án sai - hiển thị toast thông báo
+          showError(`${feedback}`);
+          setGuess('');
+        }
+      }
+    } catch (error) {
+      console.error('Lỗi khi kiểm tra câu trả lời:', error);
+      
+      // Fallback khi có lỗi
+      const userGuess = currentAttempt.toLowerCase();
+      const correctAnswer = currentQuestion.name.toLowerCase();
+      const isCorrect = userGuess === correctAnswer;
+      const feedback = generateFeedback(currentAttempt, currentQuestion.name);
+      
+      setAttempts(prev => [...prev, { 
+        text: currentAttempt, 
+        isCorrect,
+        feedback: feedback,
+        hintsUsed: currentHintIndex + 1 // Lưu số gợi ý đã sử dụng
+      }]);
+      
+      if (isCorrect) {
+        handleCorrectAnswer();
+      } else {
+        // Đáp án sai - hiển thị toast thông báo
+        showError(`${feedback}`);
+        setGuess('');
+      }
+    }
+  };
+  
+  /**
+   * Tạo phản hồi cho câu trả lời
+   */
+  const generateFeedback = (guess, correctAnswer) => {
+    const userGuess = guess.toLowerCase();
+    const correct = correctAnswer.toLowerCase();
+    
+    if (userGuess === correct) {
+      return "Chính xác!";
+    }
+    
+    if (userGuess.length < 3) {
+      return "Quá ngắn để đoán.";
+    }
+    
+    if (correct.includes(userGuess)) {
+      return "Gần đúng, hãy cụ thể hơn!";
+    }
+    
+    if (userGuess.includes(correct)) {
+      return "Quá dài, hãy đơn giản hơn!";
+    }
+    
+    // So sánh số ký tự giống nhau
+    const minLength = Math.min(userGuess.length, correct.length);
+    let matchCount = 0;
+    
+    for (let i = 0; i < minLength; i++) {
+      if (userGuess[i] === correct[i]) {
+        matchCount++;
       }
     }
     
-    setGuess('');
+    const matchPercent = Math.floor((matchCount / correct.length) * 100);
+    
+    if (matchPercent > 70) {
+      return "Rất gần đúng!";
+    } else if (matchPercent > 50) {
+      return "Khá gần đúng.";
+    } else if (matchPercent > 30) {
+      return "Hơi giống, nhưng chưa đúng.";
+    }
+    
+    return "Không đúng, hãy thử lại!";
   };
 
   /**
-   * Tiếp tục câu tiếp theo
+   * Xử lý khi người chơi trả lời đúng
+   */
+  const handleCorrectAnswer = () => {
+    setIsAnswered(true);
+    setCorrectAnswers(prev => prev + 1);
+    setGameScore(prev => prev + 1); // Chỉ cộng 1 điểm khi trả lời đúng
+    
+    // Không hiển thị modal, chuyển sang câu hỏi tiếp theo
+    handleContinue();
+  };
+
+  /**
+   * Xử lý khi người chơi tiếp tục sang câu hỏi tiếp theo
    */
   const handleContinue = () => {
-    setShowModal(false);
-    
-    // Safety check để tránh race condition
     if (questionNumber >= maxQuestions) {
       endGame();
-      return;
-    }
-    
-    // Reset tất cả state trước khi chuyển câu
-    setIsAnswered(false);
-    setCurrentQuestionScore(0);
-    setGuess('');
-    setAttempts([]);
-    setCurrentHintIndex(0);
-    setVisibleHints([]);
-    
-    // Increment question number và load câu mới
-    const nextQuestionNumber = questionNumber + 1;
-    setQuestionNumber(nextQuestionNumber);
-    
-    // Delay nhỏ để đảm bảo state đã được reset
-    setTimeout(() => {
+    } else {
+      setQuestionNumber(prev => prev + 1);
       loadNewQuestion();
-    }, 10);
+    }
   };
 
   /**
-   * Bỏ qua câu hiện tại
+   * Xử lý khi người chơi bỏ qua câu hỏi
    */
   const handleSkip = () => {
-    // Increment question number nhưng không cộng điểm
-    const nextQuestionNumber = questionNumber + 1;
-    
     setIsAnswered(true);
     
-    setModalContent({
-      title: '😅 Bỏ qua câu này',
-      message: `Đáp án là: "${currentQuestion.answer}"\n\nDanh mục: ${currentQuestion.category}\nBạn đã sử dụng ${attempts.length} lần đoán\n\nCâu tiếp theo: ${nextQuestionNumber}/${maxQuestions}`,
-      isSkip: true,
-      showContinue: nextQuestionNumber <= maxQuestions
-    });
-    setShowModal(true);
+    // Hiển thị toast thông báo khi bỏ qua
+    showError(`Đáp án là: "${currentQuestion.name}"`);
+    
+    // Chuyển sang câu tiếp theo
+    handleContinue();
   };
 
   /**
-   * Kết thúc game
+   * Kết thúc trò chơi và hiển thị kết quả
    */
-  const endGame = () => {
+  const endGame = async () => {
     setIsGameOver(true);
-    const accuracy = getAccuracyPercentage(correctAnswers, questionNumber);
-    const message = getPerformanceMessage(accuracy, gameScore);
     
-    // Lưu thống kê
-    const finalStats = {
-      questionsAnswered: questionNumber,
-      correctAnswers: correctAnswers,
-      score: gameScore,
-      accuracy: accuracy,
-      categoryResults: calculateCategoryResults()
-    };
-    
-    saveGameStats(finalStats);
-    loadGameStats();
-    
-    setModalContent({
-      title: '🏁 Kết thúc game!',
-      message: `${message}\n\nKết quả cuối:\n🎯 Đúng: ${correctAnswers}/${questionNumber} câu\n📊 Độ chính xác: ${accuracy}%\n🏆 Tổng điểm: ${gameScore}`,
-      isGameOver: true
-    });
-    setShowModal(true);
+    try {
+      // Tính điểm và lưu kết quả
+      const accuracy = (correctAnswers / questionNumber) * 100;
+      const gameResult = {
+        gamesPlayed: 1,
+        correctAnswers,
+        totalQuestions: questionNumber,
+        hintsUsed: getCurrentTotalHintsUsed(), // Thay thế bằng hàm tính toán tổng số gợi ý đã dùng
+        accuracy,
+        score: gameScore,
+        categoryResults: calculateCategoryResults()
+      };
+      
+      // Gửi kết quả lên server
+      await gameDataAPI.saveGuessWhoStats(gameResult);
+      
+      // Cập nhật stats trong state
+      const newStats = await gameDataAPI.getGuessWhoStats();
+      if (newStats.success) {
+        setGameStats(newStats.data);
+      }
+      
+      // Hiển thị kết quả
+      const accuracyText = accuracy.toFixed(1);
+      const performanceMessage = 
+        accuracy >= 80 ? 'Xuất sắc! Bạn là bậc thầy nhận diện!' :
+        accuracy >= 60 ? 'Tốt lắm! Bạn có kiến thức rộng!' :
+        accuracy >= 40 ? 'Không tệ! Tiếp tục trau dồi nhé!' :
+        'Cố gắng lên! Bạn sẽ khá hơn!';
+      
+      setModalContent({
+        title: '🏁 Kết thúc game!',
+        message: `${performanceMessage}\n\nKết quả: ${correctAnswers}/${questionNumber} câu đúng\nĐộ chính xác: ${accuracyText}%\nTổng điểm: ${gameScore}`,
+        isGameOver: true
+      });
+      setShowModal(true);
+    } catch (error) {
+      console.error('Lỗi khi kết thúc game:', error);
+      
+      // Fallback khi có lỗi
+      const accuracy = (correctAnswers / questionNumber) * 100;
+      const accuracyText = accuracy.toFixed(1);
+      const performanceMessage = 
+        accuracy >= 80 ? 'Xuất sắc! Bạn là bậc thầy nhận diện!' :
+        accuracy >= 60 ? 'Tốt lắm! Bạn có kiến thức rộng!' :
+        accuracy >= 40 ? 'Không tệ! Tiếp tục trau dồi nhé!' :
+        'Cố gắng lên! Bạn sẽ khá hơn!';
+      
+      setModalContent({
+        title: '🏁 Kết thúc game!',
+        message: `${performanceMessage}\n\nKết quả: ${correctAnswers}/${questionNumber} câu đúng\nĐộ chính xác: ${accuracyText}%\nTổng điểm: ${gameScore}`,
+        isGameOver: true
+      });
+      setShowModal(true);
+    }
   };
 
   /**
-   * Tính kết quả theo category
+   * Tính toán kết quả theo danh mục
    */
   const calculateCategoryResults = () => {
-    const results = {};
+    const categoryResults = {};
     
-    if (currentQuestion && currentQuestion.category) {
-      results[currentQuestion.category] = {
-        total: questionNumber,
-        correct: correctAnswers
-      };
+    if (!currentQuestion || !currentQuestion.category) {
+      return categoryResults;
     }
     
-    return results;
+    const category = currentQuestion.category;
+    categoryResults[category] = {
+      correct: isAnswered ? 1 : 0,
+      total: 1
+    };
+    
+    return categoryResults;
   };
 
   /**
-   * Đóng modal
+   * Xử lý khi đóng modal
    */
   const handleCloseModal = () => {
     setShowModal(false);
+    
+    if (modalContent.isSuccess || modalContent.isSkipped) {
+      handleContinue();
+    }
   };
 
   /**
-   * Chơi lại
+   * Xử lý khi người chơi muốn chơi lại
    */
   const handlePlayAgain = () => {
-    resetGuessWhoIds();
-    setQuestionNumber(1);
-    setCorrectAnswers(0);
+    setGuessWhoData(null);
+    setCurrentQuestion(null);
+    setCurrentHintIndex(0);
+    setVisibleHints([]);
+    setGuess('');
+    setAttempts([]);
     setGameScore(0);
-    setCurrentQuestionScore(0);
+    setCorrectAnswers(0);
+    setQuestionNumber(1);
     setIsGameOver(false);
     setShowModal(false);
     setIsAnswered(false);
-    setGuess('');
-    setAttempts([]);
-    setCurrentHintIndex(0);
-    setVisibleHints([]);
-    setCurrentQuestion(null);
+    setCurrentQuestionScore(GAME_CONFIG.GUESS_WHO.SCORE_PER_QUESTION);
+    setUsedCharacterIds([]);
+    // Reset tổng số gợi ý đã sử dụng
+    // setTotalHintsUsed(0); // Xóa dòng này
     
-    // Reload game stats và câu hỏi mới
-    loadGameStats();
-    loadNewQuestion();
+    // Tải dữ liệu mới
+    fetchGuessWhoData();
   };
 
   /**
    * Xóa thống kê game
    */
-  const handleClearStats = () => {
-    clearGameStats();
-    loadGameStats();
-    
-    setModalContent({
-      title: '🗑️ Đã xóa thống kê',
-      message: 'Tất cả thống kê chơi game đã được xóa.',
-      isInfo: true
-    });
-    setShowModal(true);
-    setShowStats(false);
+  const handleClearStats = async () => {
+    try {
+      await gameDataAPI.clearGuessWhoStats();
+      loadGameStats();
+      setModalContent({
+        title: 'Thành công',
+        message: 'Đã xóa thống kê game.',
+        isSuccess: true
+      });
+      setShowModal(true);
+    } catch (error) {
+      console.error('Lỗi khi xóa thống kê:', error);
+      setModalContent({
+        title: 'Lỗi',
+        message: 'Không thể xóa thống kê. Vui lòng thử lại.',
+        isError: true
+      });
+      setShowModal(true);
+    }
   };
 
-  // Hiển thị loading
-  if (isLoading || loading) {
+  /**
+   * Tính tổng số gợi ý đã sử dụng trong toàn bộ trò chơi
+   */
+  const getCurrentTotalHintsUsed = () => {
+    // Tính tổng số gợi ý đã sử dụng trong tất cả các câu hỏi trước đó
+    let totalHints = 0;
+    
+    // Duyệt qua tất cả các lần thử và tính tổng số gợi ý đã sử dụng
+    attempts.forEach(attempt => {
+      if (attempt.hintsUsed && attempt.hintsUsed > 0) {
+        // Chỉ tính cho các lần thử đã có kết quả (đã thành công hoặc bỏ qua)
+        if (attempt.isCorrect !== undefined) {
+          totalHints += attempt.hintsUsed;
+        }
+      }
+    });
+    
+    // Cộng thêm số gợi ý đã sử dụng trong câu hỏi hiện tại
+    if (currentHintIndex >= 0) {
+      totalHints += currentHintIndex + 1;
+    }
+    
+    return totalHints;
+  };
+
+  // Hiển thị trạng thái loading
+  if (isLoading) {
     return (
-      <div className="guess-who-screen">
-        <div className="loading">Đang tải câu hỏi...</div>
-      </div>
-    );
-  }
-  
-  // Hiển thị lỗi
-  if (error && !currentQuestion) {
-    return (
-      <div className="guess-who-screen">
-        <div className="error">
-          <h3>Không thể tải dữ liệu</h3>
-          <p>{error}</p>
-          <Button variant="primary" onClick={() => window.location.reload()}>
-            Tải lại
-          </Button>
+      <div className="quiz-screen">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <div className="loading-text">Đang tải dữ liệu...</div>
         </div>
       </div>
     );
   }
 
-  // Hiển thị thống kê
-  if (showStats) {
+  // Hiển thị khi không có dữ liệu
+  if (!guessWhoData) {
     return (
-      <div className="guess-who-screen">
-        <div className="game-container">
-          <div className="header">
-            <Button
-              variant="secondary"
-              onClick={() => setShowStats(false)}
-              className="back-btn"
-            >
-              ← Quay lại game
-            </Button>
-            <h1>📊 Thống kê game</h1>
-          </div>
-          
-          <div className="stats-container">
-            <div className="stats-card">
-              <h2>Tổng quát</h2>
-              <p>Số game đã chơi: {gameStats?.totalGames || 0}</p>
-              <p>Tổng số câu đã trả lời: {gameStats?.totalQuestions || 0}</p>
-              <p>Số câu trả lời đúng: {gameStats?.totalCorrect || 0}</p>
-              <p>Tỷ lệ chính xác: {gameStats?.totalQuestions ? Math.round((gameStats.totalCorrect / gameStats.totalQuestions) * 100) : 0}%</p>
-              <p>Tổng điểm: {gameStats?.totalScore || 0}</p>
-              <p>Điểm cao nhất: {gameStats?.bestScore || 0}</p>
-              <p>Lần chơi gần nhất: {gameStats?.lastPlayed ? formatLastPlayed(gameStats.lastPlayed) : 'Chưa có'}</p>
-            </div>
-            
-            <div className="stats-actions">
-              <Button
-                variant="secondary"
-                onClick={handleClearStats}
-                className="clear-stats-btn"
-              >
-                🗑️ Xóa thống kê
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => setShowStats(false)}
-                className="return-btn"
-              >
-                🎮 Quay lại game
-              </Button>
-            </div>
-          </div>
+      <div className="quiz-screen">
+        <div className="error-container">
+          <div className="error-message">Không thể tải dữ liệu game.</div>
+          <Button variant="primary" onClick={onBackHome}>Về trang chủ</Button>
         </div>
-      </div>
-    );
-  }
-
-  // Chưa có câu hỏi
-  if (!currentQuestion) {
-    return (
-      <div className="guess-who-screen">
-        <div className="loading">Đang khởi tạo game...</div>
       </div>
     );
   }
 
   return (
-    <div className="guess-who-screen">
+    <div className="quiz-screen">
       <div className="game-container">
         {/* Header */}
-        <div className="header">
-          <Button
-            variant="secondary"
+        <div className="game-header">
+          <Button 
+            variant="secondary" 
             onClick={onBackHome}
-            className="back-btn"
           >
-            ← Trang chủ
+            🏠 Trang chủ
           </Button>
           
           <div className="game-info">
@@ -434,124 +633,114 @@ const GuessWhoScreen = ({ onBackHome }) => {
               Câu {questionNumber}/{maxQuestions}
             </div>
             <div className="score-info">
-              <span className="current-score">Điểm: {gameScore}</span>
-              <span className="correct-count">Đúng: {correctAnswers}</span>
-            </div>
-          </div>
-          
-          <Button
-            variant="secondary"
-            onClick={() => setShowStats(true)}
-            className="stats-btn"
-          >
-            📊 Thống kê
-          </Button>
-        </div>
-
-        {/* Main content */}
-        <div className="game-content">
-          <h1 className="game-title">🕵️ Tôi là ai?</h1>
-          
-          {/* Hints section */}
-          <div className="hints-section">
-            <h2>Gợi ý:</h2>
-            <div className="hints-list">
-              {visibleHints.map((hint, index) => (
-                <div key={index} className="hint-item">
-                  <span className="hint-number">{index + 1}.</span>
-                  <span className="hint-text">{hint}</span>
-                </div>
-              ))}
+              <div className="current-score">
+                Điểm: {gameScore}
+              </div>
+              <div className="correct-count">
+                Đúng: {correctAnswers}
+              </div>
             </div>
             
-            {currentHintIndex < maxHints - 1 && currentHintIndex < currentQuestion.hints.length - 1 && (
-              <Button
-                variant="secondary"
-                onClick={showNextHint}
-                className="hint-btn"
-                disabled={isAnswered}
-              >
-                💡 Gợi ý tiếp theo
-              </Button>
-            )}
           </div>
-          
-          {/* Answer form */}
-          <form onSubmit={handleSubmit} className="answer-form">
-            <div className="input-group">
-              <input
-                ref={inputRef}
-                type="text"
-                value={guess}
-                onChange={(e) => setGuess(e.target.value)}
-                placeholder="Nhập câu trả lời của bạn..."
-                disabled={isAnswered || isGameOver}
-                className="answer-input"
-              />
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={!guess.trim() || isAnswered || isGameOver}
-                className="submit-btn"
-              >
-                Trả lời
-              </Button>
-            </div>
-          </form>
-          
-          {/* Previous attempts */}
-          {attempts.length > 0 && (
-            <div className="attempts-section">
-              <h3>Các lần đoán trước:</h3>
-              <div className="attempts-list">
-                {attempts.map((attempt, index) => (
-                  <div
-                    key={index}
-                    className={`attempt-item ${
-                      attempt.result.isCorrect
-                        ? 'correct'
-                        : attempt.result.isClose
-                          ? 'close'
-                          : attempt.result.isWarm
-                            ? 'warm'
-                            : 'wrong'
-                    }`}
-                  >
-                    <span className="attempt-text">{attempt.guess}</span>
-                    <span className="attempt-similarity">
-                      {attempt.result.similarity
-                        ? `${attempt.result.similarity.toFixed(1)}%`
-                        : ''}
-                    </span>
+        </div>
+        
+        {/* Game Title */}
+        <div className="section-title">
+          <h1>👤 Tôi là ai?</h1>
+          <p>Đoán nhân vật dựa vào gợi ý</p>
+        </div>
+        
+        {/* Game Content */}
+        {currentQuestion && (
+          <div className="current-word-section">
+            {/* Hints Section */}
+            <div className="hints-section">
+              <h3>Gợi ý ({currentHintIndex + 1}/{Math.min(currentQuestion.hints.length, maxHints)})</h3>
+              <div className="hint-list">
+                {visibleHints.map((hint, index) => (
+                  <div key={index} className="hint-item">
+                    {hint}
                   </div>
                 ))}
               </div>
+              
+              {!isAnswered && currentHintIndex < Math.min(currentQuestion.hints.length - 1, maxHints - 1) && (
+                <Button
+                  variant="secondary"
+                  onClick={showNextHint}
+                  disabled={isAnswered || currentHintIndex >= maxHints - 1}
+                >
+                  💡 Gợi ý tiếp theo ({currentHintIndex + 1}/{maxHints})
+                </Button>
+              )}
             </div>
-          )}
-          
-          {/* Skip option */}
-          {!isAnswered && (
-            <Button
-              variant="secondary"
-              onClick={handleSkip}
-              className="skip-btn"
-              disabled={isGameOver}
-            >
-              ⏭️ Bỏ qua
-            </Button>
-          )}
-        </div>
+            
+            {/* Input Section */}
+            {!isAnswered && (
+              <form onSubmit={handleSubmit} className="input-form">
+                <div className="input-group">
+                  <input
+                    type="text"
+                    ref={inputRef}
+                    value={guess}
+                    onChange={(e) => setGuess(e.target.value)}
+                    placeholder="Nhập tên nhân vật..."
+                    className="word-input"
+                    disabled={isAnswered}
+                  />
+                  <Button 
+                    type="submit" 
+                    variant="primary" 
+                    disabled={!guess.trim() || isAnswered}
+                  >
+                    Đoán
+                  </Button>
+                </div>
+              </form>
+            )}
+            
+            {/* Attempts Section */}
+            {attempts.length > 0 && (
+              <div className="attempts-section">
+                <h3>Đã thử ({attempts.length})</h3>
+                <div className="attempts-list">
+                  {attempts.map((attempt, index) => (
+                    <div 
+                      key={index}
+                      className={`attempt-item ${attempt.isCorrect ? 'correct' : 'wrong'}`}
+                    >
+                      <span>{attempt.text}</span>
+                      <span>{attempt.feedback}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
+            {/* Skip Button */}
+            {!isAnswered && (
+              <Button 
+                variant="secondary" 
+                onClick={handleSkip}
+                className="skip-btn"
+                disabled={isAnswered}
+              >
+                ⏩ Bỏ qua
+              </Button>
+            )}
+          </div>
+        )}
+        
         {/* Modal */}
         <Modal
           isOpen={showModal}
           title={modalContent.title}
           message={modalContent.message}
           onClose={handleCloseModal}
-          confirmText={modalContent.showContinue ? "Tiếp tục" : null}
-          onConfirm={modalContent.showContinue ? handleContinue : null}
-          cancelText={modalContent.isGameOver ? "Chơi lại" : "Tiếp tục"}
-          onCancel={modalContent.isGameOver ? handlePlayAgain : modalContent.showContinue ? handleContinue : handleCloseModal}
+          confirmText={modalContent.isGameOver ? "Chơi lại" : null}
+          onConfirm={modalContent.isGameOver ? handlePlayAgain : null}
+          cancelText={modalContent.isGameOver ? "Về trang chủ" : "Tiếp tục"}
+          onCancel={modalContent.isGameOver ? onBackHome : handleCloseModal}
         />
       </div>
     </div>

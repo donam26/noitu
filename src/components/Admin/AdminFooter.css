@@ -1,0 +1,21 @@
+.admin-footer {
+  background-color: #1a1a2e;
+  color: #a9a9b8;
+  padding: 15px 20px;
+  border-top: 1px solid #333345;
+  font-size: 0.85rem;
+}
+
+.admin-footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.admin-footer-info p, 
+.admin-footer-version p {
+  margin: 0;
+} 

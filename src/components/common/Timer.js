@@ -1,72 +1,80 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './Timer.css';
 
 /**
- * Component Timer đếm ngược
- * @param {Object} props - Props của timer
- * @param {number} props.duration - Thời gian giới hạn (giây)
+ * Component Timer - Hiển thị đồng hồ đếm ngược
+ * @param {Object} props - Props của component
+ * @param {number} props.duration - Thời gian đếm ngược (giây)
  * @param {Function} props.onTimeUp - Callback khi hết thời gian
- * @param {Function} props.onTimeUpdate - Callback khi thời gian thay đổi
+ * @param {Function} props.onTimeUpdate - Callback để cập nhật thời gian còn lại
  * @param {boolean} props.isActive - Trạng thái hoạt động của timer
  */
-const Timer = ({ duration, onTimeUp, onTimeUpdate, isActive = true }) => {
+const Timer = ({ 
+  duration = 30, 
+  onTimeUp, 
+  onTimeUpdate, 
+  isActive = true 
+}) => {
   const [timeLeft, setTimeLeft] = useState(duration);
-
-  // Reset timeLeft khi duration thay đổi
+  const [isWarning, setIsWarning] = useState(false);
+  const timerRef = useRef(null);
+  
+  // Khởi tạo timer khi component mount
   useEffect(() => {
     setTimeLeft(duration);
+    return () => clearInterval(timerRef.current);
   }, [duration]);
   
-  // Thông báo timeLeft ban đầu qua onTimeUpdate
+  // Xử lý timer
   useEffect(() => {
-    if (onTimeUpdate) {
-      onTimeUpdate(timeLeft);
+    if (isActive) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prevTime => {
+          // Nếu thời gian còn dưới 10s, hiển thị cảnh báo
+          if (prevTime <= 10) {
+            setIsWarning(true);
+          }
+          
+          // Cập nhật thời gian
+          const newTime = prevTime - 1;
+          
+          // Thông báo thời gian còn lại
+          if (onTimeUpdate) {
+            onTimeUpdate(newTime);
+          }
+          
+          // Kết thúc timer khi hết thời gian
+          if (newTime <= 0) {
+            clearInterval(timerRef.current);
+            if (onTimeUp) {
+              onTimeUp();
+            }
+            return 0;
+          }
+          
+          return newTime;
+        });
+      }, 1000);
+    } else {
+      clearInterval(timerRef.current);
     }
-  }, [timeLeft, onTimeUpdate]);
-
-  useEffect(() => {
-    // Nếu không active thì không làm gì
-    if (!isActive) return;
-
-    // Nếu hết thời gian thì gọi callback
-    if (timeLeft === 0) {
-      onTimeUp && onTimeUp();
-      return;
-    }
-
-    // Tạo interval để đếm ngược
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        const newTime = prev <= 1 ? 0 : prev - 1;
-        
-        if (newTime <= 0) {
-          clearInterval(timer);
-          onTimeUp && onTimeUp();
-        }
-        
-        return newTime;
-      });
-    }, 1000);
-
-    // Cleanup interval khi component unmount hoặc isActive/timeLeft thay đổi
-    return () => clearInterval(timer);
-  }, [timeLeft, isActive, onTimeUp]);
-
-  const percentage = (timeLeft / duration) * 100;
-  const isWarning = timeLeft <= 10;
-
+    
+    return () => clearInterval(timerRef.current);
+  }, [isActive, onTimeUp, onTimeUpdate]);
+  
+  // Tính toán phần trăm thời gian còn lại
+  const progressPercentage = (timeLeft / duration) * 100;
+  
   return (
     <div className="timer-container">
-      <div className="timer-display">
-        <span className={`timer-text ${isWarning ? 'warning' : ''}`}>
-          {timeLeft}s
-        </span>
-      </div>
-      <div className="timer-bar">
+      <div className="timer-progress">
         <div 
-          className={`timer-progress ${isWarning ? 'warning' : ''}`}
-          style={{ width: `${percentage}%` }}
-        />
+          className={`timer-progress-bar ${isWarning ? 'warning' : ''}`} 
+          style={{ width: `${progressPercentage}%` }}
+        ></div>
+      </div>
+      <div className={`timer-time ${isWarning ? 'warning' : ''}`}>
+        {timeLeft} giây
       </div>
     </div>
   );

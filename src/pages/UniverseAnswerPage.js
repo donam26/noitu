@@ -1,6 +1,6 @@
 import React from 'react';
-import UniverseAnswerScreen from '../components/Game/UniverseAnswerScreen';
 import { useNavigate } from 'react-router-dom';
+import UniverseAnswerScreen from '../components/Game/UniverseAnswerScreen';
 import './UniverseAnswerPage.css';
 
 /**
@@ -8,13 +8,13 @@ import './UniverseAnswerPage.css';
  */
 const UniverseAnswerPage = () => {
   const navigate = useNavigate();
-
+  
   const handleBackHome = () => {
     navigate('/');
   };
 
   return (
-    <div className="universe-answer-page">
+    <div className="game-screen">
       <UniverseAnswerScreen onBackHome={handleBackHome} />
     </div>
   );

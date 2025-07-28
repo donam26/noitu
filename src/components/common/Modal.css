@@ -10,17 +10,17 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  padding: 20px;
+  padding: var(--spacing-lg);
   animation: fadeIn 0.3s ease;
 }
 
 .modal {
-  background: white;
-  border-radius: 15px;
+  background: var(--bg-white);
+  border-radius: var(--border-radius);
   width: 100%;
   max-width: 600px;
   max-height: 90vh;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
   animation: modalSlideUp 0.3s ease;
   overflow: hidden;
   display: flex;
@@ -44,8 +44,8 @@
 }
 
 .modal-header {
-  padding: 20px 25px;
-  border-bottom: 1px solid #e9ecef;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border-light);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -53,9 +53,9 @@
 
 .modal-header h3 {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: var(--text-xl);
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--text-dark);
 }
 
 .close-btn {
@@ -63,7 +63,7 @@
   border: none;
   font-size: 1.8rem;
   line-height: 1;
-  color: #6c757d;
+  color: var(--text-light);
   cursor: pointer;
   padding: 0;
   margin: 0;
@@ -71,22 +71,38 @@
 }
 
 .close-btn:hover {
-  color: #dc3545;
+  color: var(--secondary);
   transform: scale(1.1);
 }
 
 .modal-content {
-  padding: 25px;
+  padding: var(--spacing-lg);
   overflow-y: auto;
   flex: 1;
 }
 
+/* Định dạng nội dung message */
+.modal-message {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-dark);
+  margin-bottom: var(--spacing-md);
+  white-space: pre-wrap;
+  text-align: left;
+}
+
+.modal-message br {
+  display: block;
+  content: "";
+  margin: 8px 0;
+}
+
 .modal-footer {
-  padding: 20px 25px;
-  border-top: 1px solid #e9ecef;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-top: 1px solid var(--border-light);
   display: flex;
   justify-content: flex-end;
-  gap: 15px;
+  gap: var(--spacing-md);
 }
 
 .modal-footer .button {
@@ -109,7 +125,7 @@
   .modal-header,
   .modal-content,
   .modal-footer {
-    padding: 15px 20px;
+    padding: var(--spacing-md);
   }
   
   .option-input {

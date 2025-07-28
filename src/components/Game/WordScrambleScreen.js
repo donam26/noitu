@@ -1,160 +1,165 @@
 import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { API_BASE_URL } from '../../utils/constants';
 import Timer from '../common/Timer';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
-import { 
-  getRandomWordForScramble,
-  scrambleWord,
-  formatScrambledDisplay,
-  checkAnswer,
-  getHint,
-  calculateScore
-} from '../../utils/wordScrambleLogic';
-import { GAME_CONFIG, MESSAGES } from '../../utils/constants';
+import { showError } from '../../utils/toast';
 import './WordScrambleScreen.css';
 
-/**
- * Component WordScrambleScreen - Màn hình chơi game sắp xếp từ
- * @param {Object} props - Props của component
- * @param {Function} props.onBackHome - Callback khi quay về trang chủ
- */
 const WordScrambleScreen = ({ onBackHome }) => {
   const [originalWord, setOriginalWord] = useState('');
   const [scrambledWord, setScrambledWord] = useState('');
-  const [inputValue, setInputValue] = useState('');
+  const [formattedDisplay, setFormattedDisplay] = useState('');
+  const [userInput, setUserInput] = useState('');
+  const [message, setMessage] = useState('');
+  const [hint, setHint] = useState('');
   const [score, setScore] = useState(0);
-  const [totalScore, setTotalScore] = useState(0);
-  const [round, setRound] = useState(1);
-  const [isGameOver, setIsGameOver] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [showHint, setShowHint] = useState(false);
+  const [gameState, setGameState] = useState('playing'); // 'playing', 'won', 'lost'
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState({});
-  const [gameStarted, setGameStarted] = useState(false);
-  const [showHint, setShowHint] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(GAME_CONFIG.TIME_LIMIT);
   
   const inputRef = useRef(null);
   const timerKey = useRef(0);
 
-  // Hàm cập nhật thời gian còn lại từ Timer
-  const handleTimeUpdate = (time) => {
-    setTimeRemaining(time);
-  };
-
-  // Khởi tạo game
+  // Tải từ mới khi component mount
   useEffect(() => {
     startNewRound();
   }, []);
 
-  // Focus vào input khi bắt đầu
-  useEffect(() => {
-    if (gameStarted && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [gameStarted, originalWord]);
+  // Bắt đầu vòng chơi mới
+  const startNewRound = async () => {
+    try {
+      // Lấy từ ngẫu nhiên từ API
+      const response = await axios.get(`${API_BASE_URL}/games/word-scramble/random`);
+      const wordData = response.data;
+      
+      setOriginalWord(wordData.originalWord);
+      setScrambledWord(wordData.scrambledWord);
+      setFormattedDisplay(wordData.formattedDisplay);
+      
+      // Thiết lập trạng thái mới
+      setUserInput('');
+      setMessage('');
+      setHint('');
+      setShowHint(false);
+      setTimeLeft(30);
+      setGameState('playing');
+      timerKey.current += 1;
 
-  /**
-   * Bắt đầu round mới
-   */
-  const startNewRound = () => {
-    const newWord = getRandomWordForScramble();
-    const scrambled = scrambleWord(newWord);
-    
-    setOriginalWord(newWord);
-    setScrambledWord(scrambled);
-    setInputValue('');
-    setGameStarted(true);
-    setShowHint(false);
-    timerKey.current += 1; // Reset timer
+      // Focus vào ô input
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    } catch (error) {
+      console.error('Lỗi khi bắt đầu vòng chơi mới:', error);
+      setModalContent({
+        title: 'Có lỗi xảy ra',
+        message: 'Không thể tải từ mới. Vui lòng thử lại.'
+      });
+      setShowModal(true);
+    }
   };
 
-  /**
-   * Xử lý khi hết thời gian
-   */
-  const handleTimeUp = () => {
-    if (isGameOver) return;
+  // Xử lý khi người chơi gửi câu trả lời
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     
+    if (gameState !== 'playing') return;
+    
+    if (!userInput.trim()) {
+      setModalContent({
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng nhập đáp án!'
+      });
+      setShowModal(true);
+      return;
+    }
+    
+    try {
+      // Gửi câu trả lời đến API để kiểm tra
+      const response = await axios.post(`${API_BASE_URL}/games/word-scramble/check`, {
+        originalWord,
+        userAnswer: userInput,
+        timeLeft
+      });
+      
+      const result = response.data;
+      
+      if (result.correct) {
+        // Chỉ cộng 1 điểm và bắt đầu vòng chơi mới ngay lập tức
+        setScore(prevScore => prevScore + 1);
+        startNewRound(); // Bắt đầu vòng chơi mới ngay lập tức
+      } else {
+        // Hiển thị toast thông báo khi sai
+        showError('Đáp án không chính xác. Hãy thử lại.');
+      }
+    } catch (error) {
+      console.error('Lỗi khi kiểm tra câu trả lời:', error);
+      setModalContent({
+        title: 'Có lỗi xảy ra',
+        message: 'Không thể kiểm tra câu trả lời. Vui lòng thử lại.'
+      });
+      setShowModal(true);
+    }
+  };
+
+  // Hiển thị gợi ý
+  const showWordHint = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/games/word-scramble/hint/${originalWord}`);
+      setHint(response.data.hint);
+      setShowHint(true);
+    } catch (error) {
+      console.error('Lỗi khi lấy gợi ý:', error);
+      setModalContent({
+        title: 'Có lỗi xảy ra',
+        message: 'Không thể lấy gợi ý. Vui lòng thử lại.'
+      });
+      setShowModal(true);
+    }
+  };
+
+  // Chơi lại với từ mới
+  const handlePlayAgain = () => {
+    setShowModal(false);
+    startNewRound();
+  };
+  
+  // Xử lý khi hết thời gian
+  const handleTimeUp = () => {
+    setGameState('lost');
+    
+    // Hiển thị toast thông báo đáp án đúng khi hết giờ
+    showError(`Hết giờ! Từ đúng là: "${originalWord}"`);
+    
+    // Hiển thị modal kết quả trò chơi với điểm số
     setModalContent({
-      title: 'Hết thời gian!',
-      message: `Từ đúng là: "${originalWord.toUpperCase()}"`
+      title: 'Kết thúc trò chơi!',
+      message: `Đã hết thời gian!\n\nĐiểm của bạn: ${score}\n\nTừ đúng là: "${originalWord}"\n\nBạn có muốn chơi lại?`,
+      isGameOver: true
     });
     setShowModal(true);
-    setIsGameOver(true);
   };
-
-  /**
-   * Xử lý submit từ người dùng
-   */
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!inputValue.trim() || isGameOver) return;
-
-    const userAnswer = inputValue.trim();
-    
-    // Kiểm tra câu trả lời
-    if (checkAnswer(originalWord, userAnswer)) {
-      // Đúng - tính điểm và chuyển round mới
-      const roundScore = calculateScore(originalWord, timeRemaining, GAME_CONFIG.TIME_LIMIT);
-      
-      setScore(roundScore);
-      setTotalScore(prev => prev + roundScore);
-      setRound(prev => prev + 1);
-      
-      setModalContent({
-        title: 'Chính xác!',
-        message: `Bạn được ${roundScore} điểm!\nChuẩn bị cho từ tiếp theo...`,
-        isSuccess: true
-      });
-      setShowModal(true);
-      
-      // Tự động chuyển round sau 1.5 giây
-      setTimeout(() => {
-        setShowModal(false);
-        startNewRound();
-      }, 1500);
-      
-    } else {
-      // Sai - hiển thị thông báo
-      setModalContent({
-        title: 'Chưa đúng!',
-        message: `Hãy thử lại. Gợi ý: ${getHint(originalWord)}`
-      });
-      setShowModal(true);
-      setInputValue('');
-    }
-  };
-
-  /**
-   * Hiển thị gợi ý
-   */
-  const handleShowHint = () => {
-    setShowHint(true);
-  };
-
-  /**
-   * Đóng modal
-   */
+  
+  // Đóng modal
   const handleCloseModal = () => {
     setShowModal(false);
-    if (isGameOver) {
-      // Không reset game, chỉ đóng modal
+    
+    if (gameState === 'won') {
+      startNewRound();
     }
   };
 
-  /**
-   * Chơi lại
-   */
-  const handlePlayAgain = () => {
-    setScore(0);
-    setTotalScore(0);
-    setRound(1);
-    setIsGameOver(false);
-    setShowModal(false);
-    setTimeRemaining(GAME_CONFIG.TIME_LIMIT);
-    startNewRound();
+  // Cập nhật thời gian còn lại từ Timer
+  const handleTimeUpdate = (time) => {
+    setTimeLeft(time);
   };
 
   return (
-    <div className="word-scramble-screen">
+    <div className="game-screen">
       <div className="game-container">
         {/* Header */}
         <div className="game-header">
@@ -163,101 +168,83 @@ const WordScrambleScreen = ({ onBackHome }) => {
             onClick={onBackHome}
             className="back-btn"
           >
-            Trang chủ
+            🏠 Trang chủ
           </Button>
-          <div className="game-info">
-            <div className="round-info">Round {round}</div>
-            <div className="score-info">
-              <div className="current-score">Điểm: {score}</div>
-              <div className="total-score">Tổng: {totalScore}</div>
-            </div>
+          <div className="score">
+            Điểm: {score}
           </div>
         </div>
 
         {/* Timer */}
-        {!isGameOver && (
+        {gameState === 'playing' && (
           <Timer
             key={timerKey.current}
-            duration={GAME_CONFIG.TIME_LIMIT}
+            duration={30}
             onTimeUp={handleTimeUp}
             onTimeUpdate={handleTimeUpdate}
-            isActive={gameStarted && !showModal}
+            isActive={gameState === 'playing' && !showModal}
           />
         )}
-
+        
         {/* Từ đảo lộn */}
-        <div className="scrambled-word-section">
-          <h2 className="section-title">Sắp xếp từ:</h2>
-          <div className="scrambled-display">
-            {formatScrambledDisplay(scrambledWord)}
+        <div className="current-word-section">
+          <h2 className="section-title">Sắp xếp lại thành từ có nghĩa:</h2>
+          <div className="current-word">
+            {formattedDisplay}
           </div>
-          {originalWord && (
-            <div className="word-length-hint">
-              Từ có {originalWord.length} ký tự
+          
+          {/* Gợi ý */}
+          {showHint && (
+            <div className="word-meaning">
+              <strong>Gợi ý:</strong> {hint}
             </div>
           )}
         </div>
 
-        {/* Gợi ý */}
-        {showHint && (
-          <div className="hint-section">
-            <div className="hint-display">
-              Gợi ý: {getHint(originalWord)}
-            </div>
-          </div>
-        )}
-
-        {/* Input form */}
-        {!isGameOver && (
+        {/* Form nhập câu trả lời */}
+        {gameState === 'playing' && (
           <form onSubmit={handleSubmit} className="input-form">
             <div className="input-group">
               <input
                 ref={inputRef}
                 type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Nhập từ đúng..."
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                placeholder="Nhập đáp án..."
+                disabled={gameState !== 'playing'}
                 className="word-input"
-                disabled={isGameOver || showModal}
               />
-              <Button 
-                type="submit" 
-                variant="primary"
-                disabled={!inputValue.trim() || isGameOver || showModal}
-              >
-                Gửi
-              </Button>
-            </div>
-            
-            <div className="action-buttons">
-              {!showHint && (
+              <div className="button-container">
                 <Button 
-                  variant="secondary"
-                  onClick={handleShowHint}
-                  className="hint-btn"
-                  disabled={showModal}
+                  type="submit" 
+                  variant="primary"
+                  disabled={!userInput.trim()}
                 >
-                  💡 Gợi ý
+                  Gửi
                 </Button>
-              )}
+                
+                <Button 
+                  type="button" 
+                  variant="secondary"
+                  onClick={showWordHint} 
+                  disabled={showHint}
+                >
+                  Gợi ý
+                </Button>
+              </div>
             </div>
           </form>
         )}
-
+        
         {/* Game Over Actions */}
-        {isGameOver && (
+        {gameState !== 'playing' && (
           <div className="game-over-actions">
-            <div className="final-score">
-              <h3>Kết thúc game!</h3>
-              <p>Tổng điểm: <span className="score-highlight">{totalScore}</span></p>
-              <p>Đã chơi: <span className="round-highlight">{round - 1}</span> round</p>
-            </div>
             <Button 
               variant="primary" 
               onClick={handlePlayAgain}
               className="action-btn"
             >
-              Chơi lại
+              🔄 Chơi lại
             </Button>
           </div>
         )}
@@ -268,8 +255,10 @@ const WordScrambleScreen = ({ onBackHome }) => {
           title={modalContent.title}
           message={modalContent.message}
           onClose={handleCloseModal}
-          cancelText={isGameOver ? "Chơi lại" : "Tiếp tục"}
-          onCancel={isGameOver ? handlePlayAgain : handleCloseModal}
+          confirmText={modalContent.isGameOver ? "Chơi lại" : null}
+          onConfirm={modalContent.isGameOver ? handlePlayAgain : null}
+          cancelText={modalContent.isGameOver ? "Về trang chủ" : "Tiếp tục"}
+          onCancel={modalContent.isGameOver ? onBackHome : handleCloseModal}
         />
       </div>
     </div>

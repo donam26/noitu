@@ -2,14 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import Timer from '../common/Timer';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
-import { 
-  getRandomWord, 
-  isValidWord, 
-  canConnectWords, 
-  findSuggestedWord,
-  getConnectionHint
-} from '../../utils/gameLogic';
+import { gameDataAPI } from '../../services/api';
 import { GAME_CONFIG, MESSAGES } from '../../utils/constants';
+import { showError } from '../../utils/toast';
 import './GameScreen.css';
 
 /**
@@ -19,6 +14,7 @@ import './GameScreen.css';
  */
 const GameScreen = ({ onBackHome }) => {
   const [currentWord, setCurrentWord] = useState('');
+  const [currentWordData, setCurrentWordData] = useState(null);
   const [inputValue, setInputValue] = useState('');
   const [score, setScore] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
@@ -26,6 +22,9 @@ const GameScreen = ({ onBackHome }) => {
   const [modalContent, setModalContent] = useState({});
   const [gameStarted, setGameStarted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(GAME_CONFIG.TIME_LIMIT);
+  const [wordMeaning, setWordMeaning] = useState('');
+  const [showWordMeaning, setShowWordMeaning] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   const inputRef = useRef(null);
   const timerKey = useRef(0);
@@ -48,11 +47,54 @@ const GameScreen = ({ onBackHome }) => {
   }, [gameStarted, currentWord]);
 
   /**
+   * Lấy từ ngẫu nhiên từ server
+   */
+  const fetchRandomWord = async () => {
+    try {
+      setIsLoading(true);
+      const response = await gameDataAPI.getRandomWord();
+      
+      if (response.success && response.data) {
+        const wordData = response.data;
+        setCurrentWord(wordData.word);
+        setCurrentWordData(wordData);
+        setWordMeaning(wordData.meaning || '');
+        return wordData;
+      } else {
+        console.error('Không thể lấy từ ngẫu nhiên:', response.message);
+        // Sử dụng từ mặc định nếu không lấy được từ server
+        const defaultWord = {
+          word: 'học sinh',
+          meaning: 'Người đang theo học tại trường',
+          last_syllable: 'sinh'
+        };
+        setCurrentWord(defaultWord.word);
+        setCurrentWordData(defaultWord);
+        setWordMeaning(defaultWord.meaning);
+        return defaultWord;
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy từ ngẫu nhiên:', error);
+      // Sử dụng từ mặc định nếu có lỗi
+      const defaultWord = {
+        word: 'học sinh',
+        meaning: 'Người đang theo học tại trường',
+        last_syllable: 'sinh'
+      };
+      setCurrentWord(defaultWord.word);
+      setCurrentWordData(defaultWord);
+      setWordMeaning(defaultWord.meaning);
+      return defaultWord;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
    * Bắt đầu round mới
    */
-  const startNewRound = () => {
-    const newWord = getRandomWord();
-    setCurrentWord(newWord);
+  const startNewRound = async () => {
+    await fetchRandomWord();
     setInputValue('');
     setGameStarted(true);
     setTimeRemaining(GAME_CONFIG.TIME_LIMIT);
@@ -65,51 +107,95 @@ const GameScreen = ({ onBackHome }) => {
   const handleTimeUp = () => {
     if (isGameOver) return;
     
-    const suggestedWord = findSuggestedWord(currentWord);
+    // Hiển thị toast thông báo đáp án đúng
+    showError(`${MESSAGES.TIME_UP} ${currentWord}`);
+    
+    // Hiển thị modal kết quả trò chơi
     setModalContent({
-      title: 'Hết thời gian!',
-      message: `${MESSAGES.TIME_UP} "${suggestedWord}"`
+      title: 'Kết thúc trò chơi!',
+      message: `Đã hết thời gian!\n\nĐiểm của bạn: ${score}\n\nBạn có muốn chơi lại?`
     });
     setShowModal(true);
     setIsGameOver(true);
+  };
+  
+  /**
+   * Xử lý game over
+   */
+  const handleGameOver = (message = null) => {
+    setIsGameOver(true);
+    
+    // Luôn hiển thị modal kết thúc game với điểm số
+    const defaultMessage = `Trò chơi kết thúc!\n\nĐiểm của bạn: ${score}\n\nBạn có muốn chơi lại?`;
+    
+      setModalContent({
+      title: 'Kết thúc trò chơi',
+      message: message || defaultMessage
+      });
+      setShowModal(true);
   };
 
   /**
    * Xử lý submit từ người dùng
    */
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!inputValue.trim() || isGameOver) return;
+    if (!inputValue.trim() || isGameOver || isLoading) return;
 
-    const userWord = inputValue.trim();
+    // Tự động thêm prefix vào từ người dùng nhập
+    const userWord = connectionHint + ' ' + inputValue.trim();
     
-    // Kiểm tra từ có hợp lệ không
-    if (!isValidWord(userWord)) {
-      setModalContent({
-        title: 'Từ không hợp lệ',
-        message: `"${userWord}" không có trong từ điển!`
-      });
-      setShowModal(true);
-      return;
+    try {
+      setIsLoading(true);
+      
+      // Kiểm tra từ nối qua API
+      const response = await gameDataAPI.checkWordConnection(currentWord, userWord);
+      console.log('Kết quả kiểm tra từ nối:', response);
+      
+      if (!response.success) {
+        showError(response.message || 'Không thể kiểm tra từ của bạn. Vui lòng thử lại sau.');
+        return;
+      }
+      
+      const { isValid, canConnect, nextWord } = response.data;
+      
+      // Nếu từ không hợp lệ
+      if (!isValid) {
+        showError(`"${userWord}" không phải là từ tiếng Việt có nghĩa!`);
+        return;
+      }
+      
+      // Nếu từ không thể nối
+      if (!canConnect) {
+        const hint = currentWordData ? currentWordData.last_syllable : '';
+        showError(`Từ phải bắt đầu bằng "${hint}".`);
+        return;
+      }
+      
+      // Đúng - tiếp tục game
+      setScore(prev => prev + 1);
+      
+      // Nếu server trả về từ tiếp theo
+      if (nextWord) {
+        setCurrentWord(nextWord.word);
+        setCurrentWordData(nextWord);
+        setWordMeaning(nextWord.meaning || '');
+      } else {
+        // Nếu không có từ tiếp theo, lấy từ ngẫu nhiên mới
+        await fetchRandomWord();
+      }
+      
+      setInputValue('');
+      
+      // Reset thời gian
+      setTimeRemaining(GAME_CONFIG.TIME_LIMIT);
+      timerKey.current += 1;
+    } catch (error) {
+      console.error('Lỗi khi xử lý từ của người chơi:', error);
+      showError('Không thể kiểm tra từ của bạn. Vui lòng thử lại sau.');
+    } finally {
+      setIsLoading(false);
     }
-
-    // Kiểm tra có nối được không
-    if (!canConnectWords(currentWord, userWord)) {
-      const suggestedWord = findSuggestedWord(currentWord);
-      const hint = getConnectionHint(currentWord);
-      setModalContent({
-        title: 'Không nối được',
-        message: `Từ phải bắt đầu bằng ${hint}. Ví dụ: "${suggestedWord}"`
-      });
-      setShowModal(true);
-      return;
-    }
-    // Đúng - tiếp tục game
-    setScore(prev => prev + 1);
-    setCurrentWord(userWord);
-    setInputValue('');
-    setTimeRemaining(GAME_CONFIG.TIME_LIMIT);
-    timerKey.current += 1; // Reset timer cho round mới
   };
 
   /**
@@ -117,9 +203,6 @@ const GameScreen = ({ onBackHome }) => {
    */
   const handleCloseModal = () => {
     setShowModal(false);
-    if (isGameOver) {
-      // Không reset game, chỉ đóng modal
-    }
   };
 
   /**
@@ -132,9 +215,16 @@ const GameScreen = ({ onBackHome }) => {
     setTimeRemaining(GAME_CONFIG.TIME_LIMIT);
     startNewRound();
   };
+  
+  /**
+   * Bật/tắt hiển thị nghĩa từ
+   */
+  const toggleWordMeaning = () => {
+    setShowWordMeaning(!showWordMeaning);
+  };
 
   // Lấy gợi ý hiển thị
-  const connectionHint = currentWord ? getConnectionHint(currentWord) : '';
+  const connectionHint = currentWordData ? currentWordData.last_syllable : '';
 
   return (
     <div className="game-screen">
@@ -153,6 +243,17 @@ const GameScreen = ({ onBackHome }) => {
           </div>
         </div>
 
+        {/* Game Mode */}
+        <div className="game-mode">
+          <Button 
+            variant={showWordMeaning ? "primary" : "secondary"}
+            onClick={toggleWordMeaning}
+            className="meaning-btn"
+          >
+            {showWordMeaning ? 'Ẩn nghĩa từ' : 'Hiện nghĩa từ'}
+          </Button>
+        </div>
+
         {/* Timer */}
         {!isGameOver && (
           <Timer
@@ -160,7 +261,7 @@ const GameScreen = ({ onBackHome }) => {
             duration={GAME_CONFIG.TIME_LIMIT}
             onTimeUp={handleTimeUp}
             onTimeUpdate={handleTimeUpdate}
-            isActive={gameStarted && !showModal}
+            isActive={gameStarted && !showModal && !isLoading}
           />
         )}
 
@@ -168,11 +269,13 @@ const GameScreen = ({ onBackHome }) => {
         <div className="current-word-section">
           <h2 className="section-title">Từ hiện tại:</h2>
           <div className="current-word">
-            {currentWord}
+            {isLoading ? 'Đang tải...' : currentWord}
           </div>
-          {currentWord && (
-            <div className="word-hint">
-              Từ tiếp theo phải bắt đầu bằng: <strong>{connectionHint}</strong>
+          
+          {/* Nghĩa của từ */}
+          {showWordMeaning && wordMeaning && (
+            <div className="word-meaning">
+              <strong>Nghĩa:</strong> {wordMeaning}
             </div>
           )}
         </div>
@@ -181,21 +284,24 @@ const GameScreen = ({ onBackHome }) => {
         {!isGameOver && (
           <form onSubmit={handleSubmit} className="input-form">
             <div className="input-group">
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder={MESSAGES.INPUT_PLACEHOLDER}
-                className="word-input"
-                disabled={isGameOver || showModal}
-              />
+              <div className="prefix-input-container">
+                <span className="prefix-input">{connectionHint}</span>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="..."
+                  className="word-input with-prefix"
+                  disabled={isGameOver || showModal || isLoading}
+                />
+              </div>
               <Button 
                 type="submit" 
                 variant="primary"
-                disabled={!inputValue.trim() || isGameOver || showModal}
+                disabled={!inputValue.trim() || isGameOver || showModal || isLoading}
               >
-                Gửi
+                {isLoading ? 'Đang xử lý...' : 'Gửi'}
               </Button>
             </div>
           </form>

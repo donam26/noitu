@@ -21,9 +21,10 @@ const useGameData = () => {
     
     try {
       const response = await gameDataAPI.getGuessWhoData();
+      console.log('fetchGuessWhoData response:', response);
       
-      if (response.success) {
-        setGuessWhoData(response.data);
+      if (response.success && response.characters) {
+        setGuessWhoData(response);
       } else {
         setError(response.message || 'Có lỗi khi lấy dữ liệu Guess Who');
       }
@@ -41,6 +42,7 @@ const useGameData = () => {
    */
   const getRandomGuessWhoQuestion = useCallback(() => {
     if (!guessWhoData || !guessWhoData.characters || guessWhoData.characters.length === 0) {
+      console.error('Không có dữ liệu nhân vật cho GuessWho');
       return null;
     }
     
@@ -50,6 +52,7 @@ const useGameData = () => {
     );
     
     if (availableCharacters.length === 0) {
+      console.warn('Đã sử dụng hết tất cả nhân vật');
       return null;
     }
     
@@ -57,8 +60,11 @@ const useGameData = () => {
     const randomIndex = Math.floor(Math.random() * availableCharacters.length);
     const selectedCharacter = availableCharacters[randomIndex];
     
-    // Tạo các gợi ý cho nhân vật này
-    const hints = [
+    console.log('Đã chọn nhân vật:', selectedCharacter.name);
+    
+    // Lấy các gợi ý từ dữ liệu có sẵn nếu có
+    // Nếu không có gợi ý sẵn, tạo gợi ý mới
+    const hints = selectedCharacter.hints || [
       `Đây là một nhân vật ${selectedCharacter.traits.gender === 'male' ? 'nam' : 'nữ'}.`,
       `Nhân vật này có tóc màu ${selectedCharacter.traits.hairColor}.`,
       `${selectedCharacter.traits.glasses ? 'Nhân vật này đeo kính.' : 'Nhân vật này không đeo kính.'}`,
@@ -71,7 +77,7 @@ const useGameData = () => {
     return {
       id: selectedCharacter.id,
       answer: selectedCharacter.name,
-      category: 'Nhân vật',
+      category: selectedCharacter.category || 'Nhân vật',
       hints: hints,
       image: selectedCharacter.image
     };

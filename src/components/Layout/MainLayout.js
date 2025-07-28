@@ -9,21 +9,32 @@ import './MainLayout.css';
  * @param {React.ReactNode} props.children - Nội dung trang
  * @param {boolean} props.showHeader - Hiển thị header (mặc định: true)
  * @param {boolean} props.showFooter - Hiển thị footer (mặc định: true)
+ * @param {boolean} props.fullscreen - Chế độ toàn màn hình cho game (mặc định: false)
+ * @param {string} props.layoutType - Loại layout: 'default', 'game', 'home' (mặc định: 'default')
  */
 const MainLayout = ({ 
   children, 
   showHeader = true, 
-  showFooter = true 
+  showFooter = true,
+  fullscreen = false,
+  layoutType = 'default'
 }) => {
+  // Xác định các class dựa trên props
+  const layoutClasses = [
+    'main-layout',
+    fullscreen ? 'fullscreen' : '',
+    `layout-${layoutType}`
+  ].filter(Boolean).join(' ');
+
   return (
-    <div className="main-layout">
-      {showHeader && <Header />}
+    <div className={layoutClasses}>
+      {showHeader && <Header layoutType={layoutType} />}
       
       <main className="main-content">
         {children}
       </main>
       
-      {showFooter && <Footer />}
+      {showFooter && <Footer layoutType={layoutType} />}
     </div>
   );
 };

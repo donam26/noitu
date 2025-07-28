@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import QuizManager from './QuizManager';
 import BehaviorQuizManager from './BehaviorQuizManager';
 import KnowledgeQuizManager from './KnowledgeQuizManager';
+import WordChainManager from './WordChainManager';
 import AIAssistant from './AIAssistant';
 import Button from '../common/Button';
 import { showSuccess, showError } from '../../utils/toast';
@@ -192,6 +193,13 @@ const AdminPanel = ({ onLogout }) => {
       icon: '🧠',
       component: KnowledgeQuizManager,
       count: knowledgeCount
+    },
+    {
+      id: 'wordchain',
+      label: '🔄 Từ vựng nối từ',
+      icon: '🔄',
+      component: WordChainManager,
+      count: null
     },
     {
       id: 'ai',

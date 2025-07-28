@@ -1,5 +1,62 @@
-/* Universe Answer Page Styles */
-.universe-answer-page {
+.game-screen {
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  background-color: #0f172a;
+}
+
+.game-screen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(1px 1px at 25px 25px, #ffffff, transparent),
+    radial-gradient(1px 1px at 50px 50px, #ffffff, transparent),
+    radial-gradient(1px 1px at 125px 125px, #ffffff, transparent),
+    radial-gradient(2px 2px at 70px 70px, #ffffff, transparent),
+    radial-gradient(2px 2px at 160px 160px, #ffffff, transparent);
+  background-size: 200px 200px;
+  background-repeat: repeat;
+  z-index: -1; /* Sửa từ 1 thành -1 */
+  opacity: 0.5;
+  animation: twinkling 8s linear infinite;
+}
+
+@keyframes twinkling {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-200px);
+  }
+}
+
+.galaxy-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, rgba(79, 70, 229, 0.5) 10%, transparent 70%);
+  box-shadow: 0 0 60px rgba(79, 70, 229, 0.4);
+  animation: pulse 4s ease-in-out infinite;
+  z-index: -1; /* Sửa từ 1 thành -1 */
+  pointer-events: none; /* Thêm để đảm bảo không nhận sự kiện click */
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0.9;
+  }
 } 

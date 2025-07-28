@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import MainLayout from './components/Layout/MainLayout';
+import UserLayout from './layouts/UserLayout';
 import HomePage from './pages/HomePage';
 import WordChainPage from './pages/WordChainPage';
 import WordScramblePage from './pages/WordScramblePage';
@@ -12,7 +12,7 @@ import KnowledgeQuizPage from './pages/KnowledgeQuizPage';
 import UniverseAnswerPage from './pages/UniverseAnswerPage';
 import GuessWhoPage from './pages/GuessWhoPage';
 import WordlePage from './pages/WordlePage';
-import AdminPage from './pages/AdminPage';
+import AdminPage from './pages/Admin/AdminPage';
 import './App.css';
 
 /**
@@ -40,9 +40,9 @@ function App() {
           <Route 
             path="/" 
             element={
-              <MainLayout>
+              <UserLayout layoutType="home">
                 <HomePage />
-              </MainLayout>
+              </UserLayout>
             } 
           />
           
@@ -50,9 +50,9 @@ function App() {
           <Route 
             path="/word-chain" 
             element={
-              <MainLayout showHeader={false} showFooter={false}>
+              <UserLayout showHeader={false} showFooter={false} fullscreen={true} layoutType="game">
                 <WordChainPage />
-              </MainLayout>
+              </UserLayout>
             } 
           />
           
@@ -60,9 +60,9 @@ function App() {
           <Route 
             path="/word-scramble" 
             element={
-              <MainLayout showHeader={false} showFooter={false}>
+              <UserLayout showHeader={false} showFooter={false} fullscreen={true} layoutType="game">
                 <WordScramblePage />
-              </MainLayout>
+              </UserLayout>
             } 
           />
           
@@ -70,9 +70,9 @@ function App() {
           <Route 
             path="/quiz" 
             element={
-              <MainLayout showHeader={false} showFooter={false}>
+              <UserLayout showHeader={false} showFooter={false} fullscreen={true} layoutType="game">
                 <QuizPage />
-              </MainLayout>
+              </UserLayout>
             } 
           />
           
@@ -80,9 +80,9 @@ function App() {
           <Route 
             path="/behavior-quiz" 
             element={
-              <MainLayout showHeader={false} showFooter={false}>
+              <UserLayout showHeader={false} showFooter={false} fullscreen={true} layoutType="game">
                 <BehaviorQuizPage />
-              </MainLayout>
+              </UserLayout>
             } 
           />
           
@@ -90,9 +90,9 @@ function App() {
           <Route 
             path="/knowledge-quiz" 
             element={
-              <MainLayout showHeader={false} showFooter={false}>
+              <UserLayout showHeader={false} showFooter={false} fullscreen={true} layoutType="game">
                 <KnowledgeQuizPage />
-              </MainLayout>
+              </UserLayout>
             } 
           />
           
@@ -100,9 +100,9 @@ function App() {
           <Route 
             path="/universe-answer" 
             element={
-              <MainLayout showHeader={false} showFooter={false}>
+              <UserLayout showHeader={false} showFooter={false} fullscreen={true} layoutType="game">
                 <UniverseAnswerPage />
-              </MainLayout>
+              </UserLayout>
             } 
           />
           
@@ -110,9 +110,9 @@ function App() {
           <Route 
             path="/guess-who" 
             element={
-              <MainLayout showHeader={false} showFooter={false}>
+              <UserLayout showHeader={false} showFooter={false} fullscreen={true} layoutType="game">
                 <GuessWhoPage />
-              </MainLayout>
+              </UserLayout>
             } 
           />
           
@@ -120,9 +120,9 @@ function App() {
           <Route 
             path="/wordle" 
             element={
-              <MainLayout showHeader={false} showFooter={false}>
+              <UserLayout showHeader={false} showFooter={false} fullscreen={true} layoutType="game">
                 <WordlePage />
-              </MainLayout>
+              </UserLayout>
             } 
           />
           
@@ -133,7 +133,7 @@ function App() {
           <Route 
             path="*" 
             element={
-              <MainLayout>
+              <UserLayout layoutType="default">
                 <div style={{ 
                   textAlign: 'center', 
                   padding: '100px 20px',
@@ -142,7 +142,7 @@ function App() {
                   <h2>404 - Trang không tồn tại</h2>
                   <p>Trang bạn tìm kiếm không tồn tại hoặc đã bị di chuyển.</p>
                 </div>
-              </MainLayout>
+              </UserLayout>
             } 
           />
         </Routes>

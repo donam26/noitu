@@ -21,7 +21,9 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "dev": "node start-dev.js",
-    "setup": "cd game-admin-server && npm install && node setup.js"
+    "setup": "cd game-admin-server && npm install && node setup.js",
+    "backend": "cd game-admin-server && npm run dev",
+    "dev:all": "concurrently \"npm run start\" \"npm run backend\""
   },
   "eslintConfig": {
     "extends": [
@@ -42,6 +44,7 @@
     ]
   },
   "devDependencies": {
+    "concurrently": "^8.2.2",
     "cross-env": "^7.0.3"
   }
 }

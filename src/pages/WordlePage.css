@@ -1,11 +1,11 @@
 .wordle-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-@media (max-width: 768px) {
-  .wordle-page {
-    padding: 10px 0;
-  }
+/* Đảm bảo trang game chiếm toàn màn hình */
+.fullscreen .wordle-page {
+  min-height: 100vh;
 } 

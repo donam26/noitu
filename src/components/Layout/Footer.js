@@ -3,10 +3,18 @@ import './Footer.css';
 
 /**
  * Component Footer - Chân trang
+ * @param {Object} props - Props của component
+ * @param {string} props.layoutType - Loại layout: 'default', 'game', 'home' (mặc định: 'default')
  */
-const Footer = () => {
+const Footer = ({ layoutType = 'default' }) => {
+  // Xác định class dựa trên loại layout
+  const footerClasses = [
+    'footer',
+    `footer-${layoutType}`
+  ].filter(Boolean).join(' ');
+
   return (
-    <footer className="footer">
+    <footer className={footerClasses}>
       <div className="footer-container">
         <div className="footer-content">
           <div className="footer-section">

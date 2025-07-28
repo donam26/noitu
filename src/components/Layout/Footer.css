@@ -1,8 +1,21 @@
+/* Base styles cho footer */
 .footer {
   background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
   color: white;
   padding: 40px 0 20px;
   margin-top: auto;
+}
+
+/* Footer cho layout game */
+.footer-game {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  padding: 20px 0 10px;
+}
+
+/* Footer cho layout home */
+.footer-home {
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  padding: 50px 0 25px;
 }
 
 .footer-container {
@@ -77,6 +90,21 @@
   margin: 0;
   color: #95a5a6;
   font-size: 0.9rem;
+}
+
+/* Simplified footer for game layout */
+.footer-game .footer-content {
+  display: none;
+}
+
+.footer-game .footer-bottom {
+  border-top: none;
+  padding-top: 0;
+}
+
+.footer-game .footer-bottom p {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 @media (max-width: 768px) {

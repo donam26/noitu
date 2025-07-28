@@ -1,0 +1,158 @@
+/* Admin Layout Styles - Completely separate from user layout */
+.admin-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #f0f2f5;
+  color: #333;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.admin-container {
+  display: flex;
+  flex: 1;
+  position: relative;
+}
+
+/* Admin Sidebar */
+.admin-sidebar {
+  width: 250px;
+  background-color: #1a1a2e;
+  color: #fff;
+  height: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid #333345;
+}
+
+.sidebar-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.sidebar-nav {
+  padding: 15px 0;
+}
+
+.sidebar-nav .nav-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  color: #a9a9b8;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.sidebar-nav .nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.sidebar-nav .nav-item.active {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-left: 3px solid #4a69bd;
+}
+
+.nav-icon {
+  margin-right: 12px;
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+}
+
+.nav-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.nav-count {
+  font-size: 0.75rem;
+  color: #a9a9b8;
+  margin-top: 2px;
+}
+
+/* Admin Main Content */
+.admin-main {
+  flex: 1;
+  overflow-y: auto;
+  background-color: #f0f2f5;
+  min-height: calc(100vh - 120px); /* Accounting for header and footer */
+}
+
+.admin-content {
+  padding: 25px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Loading spinner */
+.admin-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.loading-spinner {
+  text-align: center;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #e9ecef;
+  border-top-color: #4263eb;
+  border-radius: 50%;
+  margin: 0 auto 15px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .admin-sidebar {
+    width: 70px;
+    overflow: hidden;
+  }
+  
+  .sidebar-header h1,
+  .sidebar-header p,
+  .nav-label,
+  .nav-count,
+  .user-info {
+    display: none;
+  }
+  
+  .nav-icon {
+    margin-right: 0;
+    font-size: 1.4rem;
+  }
+  
+  .admin-main {
+    margin-left: 70px;
+    padding: 20px;
+  }
+  
+  .logout-btn {
+    padding: 8px 0;
+    font-size: 1.2rem;
+  }
+  
+  .logout-btn span {
+    display: none;
+  }
+} 

@@ -220,10 +220,10 @@ const BehaviorQuizManager = () => {
 
   // Render component
   return (
-    <div className="quiz-manager behavior-manager">
+    <div className="quiz-manager">
       <div className="quiz-header">
         <div className="quiz-title">
-          <h2>🤝 Quản lý câu hỏi "Vua Ứng Xử"</h2>
+          <h2>🧠 Quản lý câu hỏi "Vua Ứng Xử"</h2>
           <p>Tổng số câu hỏi: {totalQuestions}</p>
         </div>
         
@@ -259,15 +259,6 @@ const BehaviorQuizManager = () => {
             {questions.map((question) => (
               <div key={question.id} className="question-card">
                 <div className="question-header">
-                  <div className="question-info">
-                    <span className="question-number">#{question.id}</span>
-                    <span className={`question-difficulty ${question.difficulty}`}>
-                      {difficultyLabels[question.difficulty] || '🟡 Trung bình'}
-                    </span>
-                    {question.category && (
-                      <span className="question-category">📂 {question.category}</span>
-                    )}
-                  </div>
                   <div className="question-actions">
                     <button 
                       className="edit-btn" 

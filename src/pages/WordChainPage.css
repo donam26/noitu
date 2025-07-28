@@ -1,10 +1,13 @@
 .word-chain-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 100%;
+  height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+  flex-direction: column;
+}
+
+/* Đảm bảo trang game chiếm toàn màn hình */
+.fullscreen .word-chain-page {
+  min-height: 100vh;
 }
 
 /* Override để game chiếm toàn bộ màn hình */
@@ -20,6 +23,19 @@
 
 .word-chain-page .game-container {
   margin: 0;
-  max-width: 700px;
+  max-width: 500px;
   width: 100%;
+  box-sizing: border-box;
+}
+
+/* Responsive cho mobile */
+@media (max-width: 600px) {
+  .word-chain-page {
+    padding: 10px;
+  }
+  
+  .word-chain-page .game-container {
+    padding: 15px;
+    border-radius: 15px;
+  }
 } 

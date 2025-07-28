@@ -1,3 +1,59 @@
+/* Base styles và CSS variables cho toàn bộ ứng dụng */
+:root {
+  /* Theme colors */
+  --primary: #4776E6;
+  --primary-light: #8E54E9;
+  --primary-gradient: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  
+  --secondary: #FF8C42;
+  --secondary-light: #FFA07A;
+  --secondary-gradient: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-light) 100%);
+  
+  /* Background colors */
+  --bg-light: #F8F9FA;
+  --bg-white: #FFFFFF;
+  --bg-dark: #1E293B;
+  
+  /* Text colors */
+  --text-dark: #1E293B;
+  --text-medium: #4B5563;
+  --text-light: #9CA3AF;
+  --text-white: #FFFFFF;
+  
+  /* Borders */
+  --border-light: #E5E7EB;
+  --border-radius: 12px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+  
+  /* Font sizes */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -5,9 +61,65 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-light);
+  color: var(--text-dark);
+  line-height: 1.6;
+}
+
+a {
+  text-decoration: none;
+  color: var(--primary);
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: var(--spacing-md);
+  color: var(--text-dark);
+}
+
+p {
+  margin-bottom: var(--spacing-md);
+}
+
+/* Common utility classes */
+.text-center {
+  text-align: center;
+}
+
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease;
+}
+
+.slide-up {
+  animation: slideUp 0.5s ease;
 }

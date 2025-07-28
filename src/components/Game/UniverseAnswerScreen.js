@@ -1,17 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Button from '../common/Button';
-import Modal from '../common/Modal';
-import {
-  processQuestion,
-  typeMessage,
-  saveQuestionHistory,
-  getQuestionHistory,
-  clearQuestionHistory,
-  getAnswerStatistics,
-  getRandomSuggestedQuestion,
-  formatTime,
-  hasAPIKey
-} from '../../utils/universeAnswerLogic';
+import { gameDataAPI } from '../../services/api';
 import './UniverseAnswerScreen.css';
 
 /**
@@ -20,26 +9,26 @@ import './UniverseAnswerScreen.css';
  * @param {Function} props.onBackHome - Callback khi quay về trang chủ
  */
 const UniverseAnswerScreen = ({ onBackHome }) => {
+  // States
   const [question, setQuestion] = useState('');
   const [currentAnswer, setCurrentAnswer] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [typedMessage, setTypedMessage] = useState('');
-  const [showHistory, setShowHistory] = useState(false);
-  const [showStats, setShowStats] = useState(false);
-  const [history, setHistory] = useState([]);
-  const [stats, setStats] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
-  const [hasAI, setHasAI] = useState(false);
+  const [hasAI, setHasAI] = useState(true);
+  // State để giữ cho layout ổn định
+  const [showAnswerSection, setShowAnswerSection] = useState(false);
   
+  // Refs
   const inputRef = useRef(null);
   const answerRef = useRef(null);
   const typeWriterRef = useRef(null);
+  const typingSpeed = 30; // ms per character
 
-  // Load dữ liệu khi component mount
+  // Khởi tạo ban đầu
   useEffect(() => {
-    loadHistory();
-    loadStats();
-    setHasAI(hasAPIKey());
+    checkAIStatus();
+    
     // Focus vào input
     if (inputRef.current) {
       inputRef.current.focus();
@@ -58,27 +47,26 @@ const UniverseAnswerScreen = ({ onBackHome }) => {
   // Auto scroll đến câu trả lời
   useEffect(() => {
     if (currentAnswer && answerRef.current) {
-      answerRef.current.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'center'
-      });
+      setTimeout(() => {
+        answerRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 100);
     }
   }, [currentAnswer]);
 
   /**
-   * Load lịch sử câu hỏi
+   * Kiểm tra trạng thái AI
    */
-  const loadHistory = () => {
-    const questionHistory = getQuestionHistory();
-    setHistory(questionHistory);
-  };
-
-  /**
-   * Load thống kê
-   */
-  const loadStats = () => {
-    const statistics = getAnswerStatistics();
-    setStats(statistics);
+  const checkAIStatus = async () => {
+    try {
+      const response = await gameDataAPI.checkAIStatus();
+      setHasAI(response.success && response.data && response.data.available);
+    } catch (error) {
+      console.error('Lỗi khi kiểm tra trạng thái AI:', error);
+      setHasAI(false);
+    }
   };
 
   /**
@@ -87,356 +75,240 @@ const UniverseAnswerScreen = ({ onBackHome }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (isProcessing) return;
+    if (isProcessing || !question.trim()) return;
     
     setErrorMessage('');
     setIsProcessing(true);
-    setCurrentAnswer(null);
     setTypedMessage('');
 
+    // Hiển thị answer section ngay từ đầu để tránh hiệu ứng dãn
+    setShowAnswerSection(true);
+    
     try {
-      // Gọi AI để xử lý câu hỏi
-      const result = await processQuestion(question);
+      console.log("Đang gửi câu hỏi:", question);
       
-      if (result.success) {
-        setCurrentAnswer(result);
+      // Gọi API để xử lý câu hỏi
+      const response = await gameDataAPI.processUniverseQuestion(question);
+      
+      console.log("Kết quả từ API:", response);
+      
+      if (response && response.success && response.data) {
+        const result = response.data;
         
-        // Cancel typewriter cũ nếu có
-        if (typeWriterRef.current) {
-          typeWriterRef.current();
+        // Xử lý response để lấy câu trả lời
+        // Kiểm tra nhiều trường hợp cấu trúc data khác nhau
+        let answerText = "";
+        if (result.answer) {
+          answerText = result.answer;
+        } else if (result.data && result.data.answer) {
+          answerText = result.data.answer;
+        } else if (typeof result === 'string') {
+          answerText = result;
+        } else {
+          // Nếu không tìm thấy câu trả lời trong kết quả, tạo câu trả lời mặc định
+          answerText = "Vũ trụ đang tạm thời lặng im. Hãy thử lại câu hỏi khác.";
         }
         
-        // Hiệu ứng typing cho AI response
-        typeWriterRef.current = typeMessage(result.answer.text, setTypedMessage, 30);
+        // Lưu câu hỏi và câu trả lời trước để thiết lập layout
+        setCurrentAnswer({
+          question,
+          answer: answerText,
+          timestamp: result.timestamp || new Date().toISOString()
+        });
         
-        // Lưu vào lịch sử
-        saveQuestionHistory(result);
-        loadHistory();
-        loadStats();
+        // Hiển thị trả lời theo hiệu ứng đánh máy sau một chút delay để đảm bảo layout đã ổn định
+        setTimeout(() => {
+          typeWriter(answerText);
+        }, 50);
         
-        // Clear input
-        setQuestion('');
       } else {
-        setErrorMessage(result.error);
+        setErrorMessage(response?.message || 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.');
       }
-      
     } catch (error) {
-      console.error('Error processing question:', error);
-      setErrorMessage('Có lỗi xảy ra khi xử lý câu hỏi. Vui lòng thử lại!');
+      console.error('Lỗi khi xử lý câu hỏi:', error);
+      setErrorMessage('Đã xảy ra lỗi khi xử lý câu hỏi. Vui lòng thử lại sau.');
     } finally {
       setIsProcessing(false);
     }
+  };
+  
+  /**
+   * Hiệu ứng đánh máy cho câu trả lời
+   * @param {string} message - Nội dung cần hiển thị
+   */
+  const typeWriter = (message) => {
+    if (!message) {
+      message = "Vũ trụ đang tạm thời lặng im. Hãy thử lại sau.";
+    }
+    
+    // Kiểm tra và đảm bảo câu trả lời hoàn chỉnh
+    if (message && message.trim() !== "") {
+      // Đảm bảo chữ cái đầu viết hoa
+      message = message.trim();
+      if (message.length > 0 && message[0] === message[0].toLowerCase()) {
+        message = message[0].toUpperCase() + message.substring(1);
+      }
+    }
+    
+    // Reset typedMessage trước khi bắt đầu hiệu ứng
+    setTypedMessage('');
+    
+    let i = 0;
+    const txt = message;
+    let isTyping = true;
+    
+    // Xóa typeWriter cũ nếu có
+    if (typeWriterRef.current) {
+      typeWriterRef.current();
+    }
+    
+    const type = () => {
+      if (i < txt.length && isTyping) {
+        setTypedMessage(prev => prev + txt.charAt(i));
+        i++;
+        setTimeout(type, typingSpeed);
+      }
+    };
+    
+    // Bắt đầu hiệu ứng đánh chữ
+    type();
+    
+    // Lưu hàm stop để cleanup
+    typeWriterRef.current = () => {
+      isTyping = false;
+    };
   };
 
   /**
    * Sử dụng câu hỏi gợi ý
    */
-  const handleUseSuggestion = () => {
-    const suggestion = getRandomSuggestedQuestion();
-    setQuestion(suggestion);
-    if (inputRef.current) {
-      inputRef.current.focus();
+  const handleUseSuggestion = async () => {
+    if (isProcessing) return;
+    
+    try {
+      const response = await gameDataAPI.getRandomSuggestedQuestion();
+      if (response.success && response.data && response.data.question) {
+        setQuestion(response.data.question);
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy câu hỏi gợi ý:', error);
     }
   };
 
   /**
-   * Xóa lịch sử
-   */
-  const handleClearHistory = () => {
-    clearQuestionHistory();
-    loadHistory();
-    loadStats();
-    setShowHistory(false);
-  };
-
-  /**
-   * Đặt lại câu hỏi
+   * Reset để đặt câu hỏi mới
    */
   const handleNewQuestion = () => {
+    setQuestion('');
     setCurrentAnswer(null);
     setTypedMessage('');
     setErrorMessage('');
-    setQuestion('');
+    // Ẩn answer section khi đặt câu hỏi mới
+    setShowAnswerSection(false);
     if (inputRef.current) {
       inputRef.current.focus();
     }
   };
 
-
-
   return (
     <div className="universe-answer-screen">
-      <div className="universe-container">
+      {/* Hiệu ứng thiên hà */}
+      <div className="galaxy-overlay"></div>
+      <div className="stars"></div>
+      
+      <div className="universe-answer-container">
         {/* Header */}
         <div className="universe-header">
-          <Button
-            variant="secondary"
+          <Button 
+            variant="secondary" 
             onClick={onBackHome}
-            className="back-btn"
           >
-            ← Về trang chủ
+            🏠 Trang chủ
           </Button>
-          
         </div>
-
-        {/* Game Title */}
-        <div className="universe-title">
-          <h1>🌌 Câu trả lời từ Vũ trụ</h1>
-          <p>Hỏi điều gì cũng được, vũ trụ sẽ trả lời!</p>
-        </div>
-
-        {/* Crystal Ball Animation */}
-        <div className="crystal-ball-container">
-          <div className={`crystal-ball ${isProcessing ? 'processing' : ''}`}>
-            <div className="ball-glow"></div>
-            <div className="ball-reflection"></div>
-            <div className="mystical-particles">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className={`particle particle-${i + 1}`}></div>
-              ))}
-            </div>
+        
+        {/* Main Content */}
+        <div className="main-content">
+          {/* Game Title */}
+          <div className="game-title">
+            <h1>🌌 Câu trả lời từ vũ trụ</h1>
+            <p>Đặt bất kỳ câu hỏi nào để nhận câu trả lời từ vũ trụ</p>
           </div>
-        </div>
-
-        {/* Question Form */}
-        <div className="question-section">
+          
+          {/* Galaxy Animation */}
+          <div className="galaxy-animation"></div>
+          
+          {/* Question Form */}
           <form onSubmit={handleSubmit} className="question-form">
-            <div className="form-group">
-              <label htmlFor="question-input">
-                💭 Đặt câu hỏi của bạn:
-              </label>
-              <div className="input-container">
-                <textarea
-                  ref={inputRef}
-                  id="question-input"
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Ví dụ: Hôm nay tôi có may mắn không?"
-                  rows="3"
-                  maxLength="200"
-                  disabled={isProcessing}
-                  className="question-input"
-                />
-                <div className="char-count">
-                  {question.length}/200
-                </div>
+            <div className="input-group">
+              <input
+                ref={inputRef}
+                type="text"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="Nhập câu hỏi của bạn..."
+                disabled={isProcessing || !hasAI}
+              />
+              <div className="button-group">
+                <Button 
+                  type="submit" 
+                  variant="primary"
+                  disabled={!question.trim() || isProcessing || !hasAI}
+                >
+                  {isProcessing ? '⏳ Đang xử lý...' : '🔮 Gửi câu hỏi'}
+                </Button>
+                <Button 
+                  type="button"
+                  variant="secondary" 
+                  onClick={handleUseSuggestion}
+                  disabled={isProcessing || !hasAI}
+                >
+                  💭 Gợi ý
+                </Button>
               </div>
             </div>
-            
-            <div className="form-actions">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleUseSuggestion}
-                disabled={isProcessing}
-                className="suggestion-btn"
-              >
-                💡 Gợi ý câu hỏi
-              </Button>
-              
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={!question.trim() || isProcessing}
-                className="ask-btn"
-              >
-                {isProcessing ? '🔮 Đang hỏi vũ trụ...' : '🚀 Hỏi vũ trụ'}
-              </Button>
-            </div>
+            {!hasAI && (
+              <div className="ai-warning">
+                ⚠️ API Key chưa được cấu hình. Vui lòng liên hệ quản trị viên.
+              </div>
+            )}
           </form>
-
+          
           {/* Error Message */}
           {errorMessage && (
-            <div className="error-message">
-              ⚠️ {errorMessage}
-            </div>
+            <div className="error-message">{errorMessage}</div>
           )}
-        </div>
-
-        {/* Processing State */}
-        {isProcessing && (
-          <div className="processing-section">
-            <div className="processing-text">
-              <div className="typing-dots">
-                <span></span>
-                <span></span>
-                <span></span>
+          
+          {/* Answer Display - Sử dụng showAnswerSection để kiểm soát hiển thị */}
+          {showAnswerSection && (
+            <div className="answer-section" ref={answerRef}>
+              <div className="question-display">
+                <strong>Câu hỏi:</strong> {currentAnswer ? currentAnswer.question : question}
               </div>
-              <p>Vũ trụ đang suy nghĩ...</p>
-            </div>
-          </div>
-        )}
-
-        {/* Answer Section */}
-        {currentAnswer && (
-          <div ref={answerRef} className="answer-section">
-            <div className={`answer-card ${currentAnswer.answer.type}`}>
-              <div className="answer-header">
-                <div className="answer-emoji">
-                  {currentAnswer.answer.emoji}
-                </div>
-                <div className="answer-type">
-                  {currentAnswer.answer.type === 'yes' ? 'CÓ!' : 
-                   currentAnswer.answer.type === 'no' ? 'KHÔNG!' : 'CÓ THỂ...'}
-                </div>
-              </div>
-              
-              <div className="answer-content">
-                <div className="user-question">
-                  <strong>Bạn hỏi:</strong> "{currentAnswer.question}"
-                </div>
-                
-                <div className="universe-answer">
-                  <strong>Vũ trụ trả lời:</strong>
-                  <div className="answer-message">
-                    {typedMessage}
-                    {typedMessage.length < currentAnswer.answer.text.length && (
-                      <span className="typing-cursor">|</span>
-                    )}
-                  </div>
+              <div className="answer-display">
+                <strong>Trả lời:</strong> 
+                <div className="answer-text">
+                  {typedMessage || (isProcessing ? 'Vũ trụ đang suy nghĩ...' : '')}
+                  {isProcessing && <span className="cursor">|</span>}
                 </div>
               </div>
               
               <div className="answer-actions">
-                <Button
-                  variant="primary"
+                <Button 
+                  variant="primary" 
                   onClick={handleNewQuestion}
-                  className="new-question-btn"
+                  disabled={isProcessing}
                 >
                   🔄 Câu hỏi mới
                 </Button>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Instructions */}
-        {!currentAnswer && !isProcessing && (
-          <div className="instructions">
-            <h3>🌟 Cách chơi:</h3>
-            <ul>
-              <li>💭 Nghĩ ra một câu hỏi bất kỳ</li>
-              <li>⌨️ Gõ câu hỏi vào khung bên trên</li>
-              <li>🚀 Nhấn "Hỏi vũ trụ" và chờ câu trả lời</li>
-              <li>🎭 Vũ trụ sẽ trả lời theo cách hài hước và bất ngờ</li>
-              <li>📚 Xem lại lịch sử và thống kê câu trả lời</li>
-            </ul>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-
-      {/* History Modal */}
-      <Modal
-        isOpen={showHistory}
-        onClose={() => setShowHistory(false)}
-        title="📚 Lịch sử câu hỏi"
-        className="history-modal"
-      >
-        <div className="history-content">
-          {history.length > 0 ? (
-            <>
-              <div className="history-actions">
-                <Button
-                  variant="danger"
-                  onClick={handleClearHistory}
-                  className="clear-history-btn"
-                >
-                  🗑️ Xóa lịch sử
-                </Button>
-              </div>
-              
-              <div className="history-list">
-                {history.map((entry) => (
-                  <div key={entry.id} className={`history-item ${entry.answer.type}`}>
-                    <div className="history-question">
-                      <strong>❓ {entry.question}</strong>
-                    </div>
-                    <div className="history-answer">
-                      {entry.answer.emoji} {entry.answer.text}
-                    </div>
-                    <div className="history-time">
-                      🕐 {formatTime(entry.timestamp)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="empty-history">
-              <p>📭 Chưa có câu hỏi nào. Hãy bắt đầu hỏi vũ trụ!</p>
-            </div>
-          )}
-        </div>
-      </Modal>
-
-      {/* Stats Modal */}
-      <Modal
-        isOpen={showStats}
-        onClose={() => setShowStats(false)}
-        title="📊 Thống kê câu trả lời"
-        className="stats-modal"
-      >
-        <div className="stats-content">
-          {stats && stats.total > 0 ? (
-            <>
-              <div className="stats-summary">
-                <div className="stat-item">
-                  <div className="stat-number">{stats.total}</div>
-                  <div className="stat-label">Tổng câu hỏi</div>
-                </div>
-              </div>
-              
-              <div className="stats-breakdown">
-                <div className="stat-bar yes">
-                  <div className="stat-info">
-                    <span>✅ CÓ</span>
-                    <span>{Math.round((stats.yes / stats.total) * 100)}%</span>
-                  </div>
-                  <div className="stat-progress">
-                    <div 
-                      className="stat-fill" 
-                      style={{ width: `${Math.round((stats.yes / stats.total) * 100)}%` }}
-                    ></div>
-                  </div>
-                  <div className="stat-count">{stats.yes} câu</div>
-                </div>
-                
-                <div className="stat-bar no">
-                  <div className="stat-info">
-                    <span>❌ KHÔNG</span>
-                    <span>{Math.round((stats.no / stats.total) * 100)}%</span>
-                  </div>
-                  <div className="stat-progress">
-                    <div 
-                      className="stat-fill" 
-                      style={{ width: `${Math.round((stats.no / stats.total) * 100)}%` }}
-                    ></div>
-                  </div>
-                  <div className="stat-count">{stats.no} câu</div>
-                </div>
-                
-                <div className="stat-bar maybe">
-                  <div className="stat-info">
-                    <span>🤷‍♂️ CÓ THỂ</span>
-                    <span>{Math.round((stats.maybe / stats.total) * 100)}%</span>
-                  </div>
-                  <div className="stat-progress">
-                    <div 
-                      className="stat-fill" 
-                      style={{ width: `${Math.round((stats.maybe / stats.total) * 100)}%` }}
-                    ></div>
-                  </div>
-                  <div className="stat-count">{stats.maybe} câu</div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="empty-stats">
-              <p>📈 Chưa có dữ liệu thống kê. Hãy hỏi vài câu trước!</p>
-            </div>
-          )}
-        </div>
-      </Modal>
     </div>
   );
 };

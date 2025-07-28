@@ -1,3 +1,4 @@
+/* Base styles cho tất cả các layout */
 .main-layout {
   min-height: 100vh;
   display: flex;
@@ -18,8 +19,42 @@
 /* Style cho trang full-screen (như game) */
 .main-layout.fullscreen .main-content {
   padding: 0;
+  margin: 0;
+  max-width: 100%;
+  width: 100%;
 }
 
 .main-layout.fullscreen {
   overflow: hidden;
+}
+
+/* Style cho layout game */
+.layout-game .main-content {
+  padding: 0;
+  background-color: var(--bg-dark);
+  color: var(--text-white);
+}
+
+/* Style cho layout home */
+.layout-home .main-content {
+  padding: 0;
+  background: var(--primary-gradient);
+}
+
+/* Style cho layout default */
+.layout-default .main-content {
+  padding: var(--spacing-lg);
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  background-color: var(--bg-white);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .layout-default .main-content {
+    padding: var(--spacing-md);
+  }
 } 

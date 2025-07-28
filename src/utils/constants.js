@@ -1,10 +1,35 @@
-// Các hằng số cho game nối từ
+// API Base URL
+export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
+
+// Các hằng số cho các game
 export const GAME_CONFIG = {
   TIME_LIMIT: 30, // 30 giây cho mỗi lượt
   GAME_STATES: {
     HOME: 'HOME',
     PLAYING: 'PLAYING',
     GAME_OVER: 'GAME_OVER'
+  },
+  QUIZ: {
+    MAX_QUESTIONS: 10,
+    TIME_PER_QUESTION: 30
+  },
+  BEHAVIOR_QUIZ: {
+    MAX_QUESTIONS: 10,
+    TIME_PER_QUESTION: 30,
+    POINTS_BASE: 100,
+    POINTS_TIME_BONUS: 50 // Điểm thưởng tối đa cho thời gian
+  },
+  KNOWLEDGE_QUIZ: {
+    MAX_QUESTIONS: 10,
+    TIME_PER_QUESTION: 30,
+    POINTS_BASE: 100,
+    POINTS_TIME_BONUS: 50 // Điểm thưởng tối đa cho thời gian
+  },
+  GUESS_WHO: {
+    MAX_QUESTIONS: 10,
+    MAX_HINTS: 3, // Số gợi ý tối đa cho mỗi câu hỏi
+    SCORE_PER_QUESTION: 100, // Điểm cơ bản cho mỗi câu đúng
+    HINT_PENALTY: 0 // Không trừ điểm khi sử dụng gợi ý
   }
 };
 

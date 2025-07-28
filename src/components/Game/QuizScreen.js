@@ -2,16 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import Timer from '../common/Timer';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
-import { 
-  checkAnswer,
-  calculateQuizScore,
-  isGameFinished,
-  getAccuracyPercentage,
-  getPerformanceMessage,
-  shuffleOptions
-} from '../../utils/quizLogic';
 import { GAME_CONFIG } from '../../utils/constants';
-import useQuizData from '../../hooks/useQuizData';
+import { quizAPI } from '../../services/api';
+import { showError } from '../../utils/toast';
 import './QuizScreen.css';
 
 /**
@@ -34,22 +27,28 @@ const QuizScreen = ({ onBackHome }) => {
   const [isAnswered, setIsAnswered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(GAME_CONFIG.TIME_LIMIT);
-  
-  // Sử dụng custom hook để lấy dữ liệu
-  const {
-    loading,
-    error,
-    usedQuestions,
-    getRandomQuestion,
-    resetUsedQuestions
-  } = useQuizData();
+  const [usedQuestionIds, setUsedQuestionIds] = useState([]);
   
   const timerKey = useRef(0);
-  const maxQuestions = 10;
+  const maxQuestions = GAME_CONFIG.QUIZ.MAX_QUESTIONS || 10;
 
   // Hàm cập nhật thời gian còn lại từ Timer
   const handleTimeUpdate = (time) => {
     setTimeRemaining(time);
+  };
+
+  /**
+   * Hàm xáo trộn mảng (Fisher-Yates shuffle algorithm)
+   * @param {Array} array - Mảng cần xáo trộn
+   * @returns {Array} Mảng đã được xáo trộn
+   */
+  const shuffleArray = (array) => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
   };
 
   // Khởi tạo game
@@ -58,28 +57,37 @@ const QuizScreen = ({ onBackHome }) => {
   }, []);
 
   /**
-   * Tải câu hỏi mới
+   * Tải câu hỏi mới từ API
    */
   const loadNewQuestion = async () => {
     setIsLoading(true);
     
     // Kiểm tra game kết thúc
-    if (isGameFinished(usedQuestions, maxQuestions)) {
+    if (questionNumber > maxQuestions) {
       endGame();
       setIsLoading(false);
       return;
     }
     
     try {
-      const result = await getRandomQuestion();
+      // Sử dụng trực tiếp quizAPI thay vì questionAPI
+      console.log("Đang lấy câu hỏi từ quizAPI, exclude:", usedQuestionIds);
+      const response = await quizAPI.getRandomQuestion({ exclude: usedQuestionIds });
       
-      if (!result) {
-        endGame();
+      if (!response.success || !response.data || !response.data.question) {
+        console.error('Không thể lấy câu hỏi mới:', response.message);
+        setModalContent({
+          title: 'Lỗi',
+          message: 'Không thể tải câu hỏi mới. Vui lòng thử lại sau.',
+          isError: true
+        });
+        setShowModal(true);
         setIsLoading(false);
         return;
       }
       
-      const { question } = result;
+      const question = response.data.question;
+      const questionIndex = response.data.index || response.data.id;
       
       // Kiểm tra câu hỏi và các lựa chọn
       if (!question || !question.options || !Array.isArray(question.options)) {
@@ -94,25 +102,43 @@ const QuizScreen = ({ onBackHome }) => {
         return;
       }
       
-      // Xáo trộn các lựa chọn
-      const { shuffledOptions, newCorrectIndex } = shuffleOptions(
-        question.options, 
-        question.correctAnswer
-      );
+      // Thêm ID câu hỏi vào danh sách đã sử dụng
+      if (questionIndex) {
+        setUsedQuestionIds(prev => [...prev, questionIndex]);
+      }
       
+      // Set câu hỏi hiện tại
       setCurrentQuestion(question);
+      
+      // Xử lý xáo trộn các lựa chọn trên client
+      const correctAnswer = question.correct_answer;
+      const originalOptions = [...question.options];
+      
+      // Lưu đáp án đúng trước khi xáo trộn
+      const correctOption = typeof correctAnswer === 'number' 
+        ? originalOptions[correctAnswer] 
+        : correctAnswer;
+      
+      // Xáo trộn các lựa chọn
+      const shuffledOptions = shuffleArray(originalOptions);
+      
+      // Tìm vị trí mới của đáp án đúng sau khi xáo trộn
+      const newCorrectIndex = shuffledOptions.indexOf(correctOption);
+      
       setCurrentOptions(shuffledOptions);
       setCurrentCorrectIndex(newCorrectIndex);
+      
+      // Reset trạng thái
       setSelectedAnswer(-1);
       setIsAnswered(false);
       setGameStarted(true);
-      timerKey.current += 1; // Reset timer
-    } catch (err) {
-      console.error('Lỗi khi tải câu hỏi mới:', err);
+      timerKey.current += 1;
       
+    } catch (error) {
+      console.error('Lỗi khi tải câu hỏi mới:', error);
       setModalContent({
         title: 'Lỗi',
-        message: 'Không thể tải câu hỏi. Vui lòng thử lại sau.',
+        message: 'Không thể tải câu hỏi mới. Vui lòng thử lại sau.',
         isError: true
       });
       setShowModal(true);
@@ -123,54 +149,38 @@ const QuizScreen = ({ onBackHome }) => {
 
   /**
    * Xử lý khi chọn đáp án
+   * @param {number} answerIndex - Chỉ số đáp án được chọn
    */
-  const handleAnswerSelect = (answerIndex) => {
+  const handleAnswerSelect = async (answerIndex) => {
     if (isAnswered || isGameOver) return;
     
     setSelectedAnswer(answerIndex);
     setIsAnswered(true);
     
-    // Kiểm tra đáp án và tính điểm
-    const isCorrect = checkAnswer(answerIndex, currentCorrectIndex);
-    
-    if (isCorrect) {
-      // Chỉ cộng 1 điểm cho mỗi câu trả lời đúng
-      setCorrectAnswers(prev => prev + 1);
-      setTotalScore(prev => prev + 1);
-    }
-    
-    // Hiển thị kết quả sau 1 giây
-    setTimeout(() => {
+    // Xử lý kiểm tra đáp án trên client
+    const isCorrect = answerIndex === currentCorrectIndex;
+      
       if (isCorrect) {
-        setModalContent({
-          title: '🎉 Chính xác!',
-          message: `Tuyệt vời! Bạn được 1 điểm!\n\n${currentQuestion.explanation || ''}`,
-          isSuccess: true
-        });
+      // Cộng điểm khi đúng
+        setCorrectAnswers(prev => prev + 1);
+        setTotalScore(prev => prev + 1);
       } else {
-        // Kiểm tra đáp án đúng tồn tại trước khi hiển thị
-        const correctOption = currentOptions[currentCorrectIndex];
-        setModalContent({
-          title: '❌ Sai rồi!',
-          message: `Đáp án đúng là: "${correctOption || 'Không xác định'}"\n\n${currentQuestion.explanation || ''}`,
-          isSuccess: false
-        });
+      // Hiển thị thông báo khi trả lời sai
+      const correctOptionText = currentOptions[currentCorrectIndex] || 'không xác định';
+      showError(`Đáp án đúng là: "${correctOptionText}"`);
       }
       
-      setShowModal(true);
-      
-      // Tự động chuyển câu sau 3 giây
-      setTimeout(() => {
-        setShowModal(false);
-        if (questionNumber < maxQuestions) {
-          setQuestionNumber(prev => prev + 1);
-          loadNewQuestion();
-        } else {
+    // Chờ 2 giây trước khi chuyển câu hỏi tiếp
+    setTimeout(() => {
+      // Nếu đã chơi đủ số câu hỏi, kết thúc game
+      if (questionNumber >= maxQuestions) {
           endGame();
-        }
-      }, 3000);
-      
-    }, 1000);
+      } else {
+        // Chuyển sang câu hỏi tiếp theo
+        setQuestionNumber(prev => prev + 1);
+        loadNewQuestion();
+      }
+    }, 2000);
   };
 
   /**
@@ -180,191 +190,206 @@ const QuizScreen = ({ onBackHome }) => {
     if (isAnswered || isGameOver) return;
     
     setIsAnswered(true);
-    setTimeRemaining(0);
     
-    // Kiểm tra đáp án đúng tồn tại trước khi hiển thị
-    const correctOption = currentOptions[currentCorrectIndex];
+    // Hiển thị thông báo đáp án đúng khi hết giờ
+    const correctOptionText = currentOptions[currentCorrectIndex] || 'không xác định';
+    showError(`Hết giờ! Đáp án đúng là: "${correctOptionText}"`);
     
-    setModalContent({
-      title: '⏰ Hết thời gian!',
-      message: `Đáp án đúng là: "${correctOption || 'Không xác định'}"\n\n${currentQuestion?.explanation || ''}`,
-      isSuccess: false
-    });
-    setShowModal(true);
-    
-    // Tự động chuyển câu sau 3 giây
+    // Chờ 2 giây trước khi chuyển câu hỏi tiếp
     setTimeout(() => {
-      setShowModal(false);
-      if (questionNumber < maxQuestions) {
+    // Nếu đã chơi đủ số câu hỏi, kết thúc game
+    if (questionNumber >= maxQuestions) {
+        endGame();
+    } else {
+        // Chuyển sang câu hỏi tiếp theo
         setQuestionNumber(prev => prev + 1);
         loadNewQuestion();
-      } else {
-        endGame();
       }
-    }, 3000);
+      }, 2000);
   };
 
   /**
    * Kết thúc game
    */
-  const endGame = () => {
+  const endGame = async () => {
     setIsGameOver(true);
     
-    // Đảm bảo không chia cho 0
-    const totalQuestions = Math.max(1, questionNumber - 1);
-    const accuracy = getAccuracyPercentage(correctAnswers, totalQuestions);
-    const message = getPerformanceMessage(accuracy);
-    
-    setModalContent({
-      title: '🏁 Kết thúc game!',
-      message: `${message}\n\nKết quả: ${correctAnswers}/${totalQuestions} câu đúng\nĐộ chính xác: ${accuracy}%\nTổng điểm: ${totalScore}`,
-      isGameOver: true
-    });
-    setShowModal(true);
+    try {
+      // Tạo dữ liệu thống kê
+      const gameStats = {
+        correctAnswers,
+        totalQuestions: maxQuestions,
+        totalScore
+      };
+      
+      // Gửi kết quả trò chơi lên server nếu có endpoint
+      let performanceMessage = '';
+      try {
+      const resultResponse = await quizAPI.submitGameResult(gameStats);
+        if (resultResponse && resultResponse.data && resultResponse.data.performanceMessage) {
+          performanceMessage = resultResponse.data.performanceMessage;
+        }
+      } catch (error) {
+        console.log('Không thể gửi kết quả trò chơi:', error);
+      }
+      
+      // Nếu không có performanceMessage từ server, tự tạo thông báo
+      if (!performanceMessage) {
+      const accuracyPercentage = (correctAnswers / maxQuestions) * 100;
+        performanceMessage = accuracyPercentage >= 80 ? 'Xuất sắc! Bạn thật thông minh!' :
+                              accuracyPercentage >= 60 ? 'Tốt lắm! Tiếp tục cố gắng nhé!' :
+                              accuracyPercentage >= 40 ? 'Khá tốt! Hãy học thêm nhé!' :
+                            'Cố gắng lên! Bạn có thể làm tốt hơn!';
+      }
+      
+      setModalContent({
+        title: 'Kết thúc trò chơi!',
+        message: `Kết quả:\n✅ Câu đúng: ${correctAnswers}/${maxQuestions}\n💯 Điểm số: ${totalScore}\n\n${performanceMessage}`,
+        isGameOver: true
+      });
+      setShowModal(true);
+    } catch (error) {
+      console.error('Lỗi khi kết thúc trò chơi:', error);
+      
+      // Fallback khi không gọi được API
+      const accuracyPercentage = (correctAnswers / maxQuestions) * 100;
+      const performanceMessage = accuracyPercentage >= 80 ? 'Xuất sắc! Bạn thật thông minh!' :
+                                accuracyPercentage >= 60 ? 'Tốt lắm! Tiếp tục cố gắng nhé!' :
+                                accuracyPercentage >= 40 ? 'Khá tốt! Hãy học thêm nhé!' :
+                                'Cố gắng lên! Bạn có thể làm tốt hơn!';
+      
+      setModalContent({
+        title: 'Kết thúc trò chơi!',
+        message: `Kết quả:\n✅ Câu đúng: ${correctAnswers}/${maxQuestions}\n💯 Điểm số: ${totalScore}\n\n${performanceMessage}`,
+        isGameOver: true
+      });
+      setShowModal(true);
+    }
   };
 
   /**
-   * Đóng modal
+   * Xử lý khi đóng modal
    */
   const handleCloseModal = () => {
     setShowModal(false);
+    
+    // Nếu chưa kết thúc game, tải câu hỏi tiếp theo
+    if (!isGameOver && isAnswered) {
+      setQuestionNumber(prev => prev + 1);
+      setTimeout(() => {
+        loadNewQuestion();
+      }, 500);
+    }
   };
 
   /**
-   * Chơi lại
+   * Xử lý khi người chơi muốn chơi lại
    */
   const handlePlayAgain = () => {
-    resetUsedQuestions();
+    // Reset lại trạng thái game
+    setCurrentQuestion(null);
+    setCurrentOptions([]);
+    setCurrentCorrectIndex(-1);
+    setSelectedAnswer(-1);
     setCorrectAnswers(0);
     setTotalScore(0);
     setQuestionNumber(1);
     setIsGameOver(false);
     setShowModal(false);
+    setGameStarted(false);
     setIsAnswered(false);
-    setTimeRemaining(GAME_CONFIG.TIME_LIMIT);
+    setUsedQuestionIds([]);
+    
+    // Tải câu hỏi mới
     loadNewQuestion();
   };
 
-  // Hiển thị trạng thái loading
-  if (isLoading || loading) {
-    return (
-      <div className="quiz-screen">
-        <div className="loading">Đang tải câu hỏi...</div>
-      </div>
-    );
-  }
-  
-  // Hiển thị lỗi
-  if (error && !currentQuestion) {
-    return (
-      <div className="quiz-screen">
-        <div className="error">
-          <h3>Không thể tải câu hỏi</h3>
-          <p>{error}</p>
-          <Button variant="primary" onClick={() => window.location.reload()}>
-            Tải lại
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Hiển thị khi không có câu hỏi
-  if (!currentQuestion) {
-    return (
-      <div className="quiz-screen">
-        <div className="loading">Đang khởi tạo game...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="quiz-screen">
-      <div className="game-container">
-        {/* Header */}
-        <div className="game-header">
-          <Button 
-            variant="secondary" 
-            onClick={onBackHome}
-            className="back-btn"
-          >
-            🏠 Trang chủ
-          </Button>
-          <div className="game-info">
-            <div className="question-counter">
-              Câu {questionNumber}/{maxQuestions}
-            </div>
-            <div className="score-info">
-              <div className="current-score">Điểm: {totalScore}</div>
-              <div className="correct-count">Đúng: {correctAnswers}</div>
-            </div>
-          </div>
+      {/* Header */}
+      <div className="quiz-header">
+        <Button 
+          variant="secondary"
+          onClick={onBackHome}
+        >
+          🏠 Trang chủ
+        </Button>
+        <div className="quiz-stats">
+          <span className="quiz-score">Điểm: {totalScore}</span>
+          <span className="quiz-count">Câu hỏi: {questionNumber}/{maxQuestions}</span>
+          <span className="quiz-accuracy">Đúng: {correctAnswers}/{questionNumber - (isAnswered ? 0 : 1)}</span>
         </div>
-
-        {/* Timer */}
-        {!isGameOver && (
-          <Timer
-            key={timerKey.current}
-            duration={GAME_CONFIG.TIME_LIMIT}
-            onTimeUp={handleTimeUp}
-            onTimeUpdate={handleTimeUpdate}
-            isActive={gameStarted && !showModal && !isAnswered}
-          />
-        )}
-
-        {/* Câu hỏi */}
-        <div className="question-section">
-          <div className="question-text">
-            {currentQuestion.question || "Không có câu hỏi"}
-          </div>
-        </div>
-
-        {/* Các lựa chọn */}
-        <div className="options-section">
-          {currentOptions.map((option, index) => (
-            <button
-              key={index}
-              className={`option-button ${
-                selectedAnswer === index 
-                  ? (index === currentCorrectIndex ? 'correct' : 'incorrect')
-                  : ''
-              } ${isAnswered ? 'disabled' : ''}`}
-              onClick={() => handleAnswerSelect(index)}
-              disabled={isAnswered || isGameOver}
-            >
-              <span className="option-letter">
-                {String.fromCharCode(65 + index)}.
-              </span>
-              {option || "Không có lựa chọn"}
-            </button>
-          ))}
-        </div>
-
-        {/* Game Over Actions */}
-        {isGameOver && (
-          <div className="game-over-actions">
-            <Button 
-              variant="primary" 
-              onClick={handlePlayAgain}
-              className="action-btn"
-            >
-              🔄 Chơi lại
-            </Button>
-          </div>
-        )}
-
-        {/* Modal */}
-        <Modal
-          isOpen={showModal}
-          title={modalContent.title}
-          message={modalContent.message}
-          onClose={modalContent.isGameOver ? null : handleCloseModal}
-          confirmText={modalContent.isGameOver ? "Chơi lại" : null}
-          onConfirm={modalContent.isGameOver ? handlePlayAgain : null}
-          cancelText={modalContent.isGameOver ? "Về trang chủ" : "Tiếp tục"}
-          onCancel={modalContent.isGameOver ? onBackHome : handleCloseModal}
-        />
       </div>
+      
+      {/* Main Content */}
+      <div className="quiz-content">
+        {isLoading ? (
+          <div className="loading-indicator">Đang tải câu hỏi...</div>
+        ) : currentQuestion ? (
+          <>
+            {/* Timer */}
+            {gameStarted && !isAnswered && !isGameOver && (
+              <Timer 
+                key={timerKey.current}
+                duration={GAME_CONFIG.QUIZ.TIME_PER_QUESTION} 
+                onTimeUp={handleTimeUp}
+                onTimeUpdate={handleTimeUpdate}
+                isActive={!isAnswered && !isGameOver}
+              />
+            )}
+            
+            {/* Question */}
+            <div className="question-container">
+              <h3 className="question-text">{currentQuestion.question}</h3>
+            </div>
+            
+            {/* Options */}
+            <div className="options-container">
+              {currentOptions.map((option, index) => (
+                <button
+                  key={index}
+                  className={`option-button ${selectedAnswer === index ? 'selected' : ''} 
+                             ${isAnswered ? (index === currentCorrectIndex ? 'correct' : 
+                                            selectedAnswer === index ? 'incorrect' : '') : ''}`}
+                  onClick={() => handleAnswerSelect(index)}
+                  disabled={isAnswered || isGameOver}
+                >
+                  <span className="option-letter">
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                  <span className="option-text">
+                    {option}
+                  </span>
+                </button>
+              ))}
+            </div>
+            
+            {/* Explanation */}
+            {isAnswered && currentQuestion.explanation && (
+              <div className="explanation">
+                <h4>Giải thích:</h4>
+                <p>{currentQuestion.explanation}</p>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="error-message">
+            Không thể tải câu hỏi. Vui lòng thử lại.
+          </div>
+        )}
+      </div>
+      
+      {/* Modal */}
+      <Modal
+        isOpen={showModal}
+        title={modalContent.title || ''}
+        message={modalContent.message || ''}
+        onClose={handleCloseModal}
+        confirmText={modalContent.isGameOver ? "Chơi lại" : ''}
+        onConfirm={modalContent.isGameOver ? handlePlayAgain : undefined}
+        cancelText={modalContent.isGameOver ? "Về trang chủ" : "Tiếp tục"}
+        onCancel={modalContent.isGameOver ? onBackHome : handleCloseModal}
+      />
     </div>
   );
 };

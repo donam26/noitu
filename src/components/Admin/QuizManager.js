@@ -15,6 +15,7 @@ const QuizManager = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalQuestions, setTotalQuestions] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -35,7 +36,12 @@ const QuizManager = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await quizAPI.getQuestions(currentPage, itemsPerPage);
+      const options = {};
+      if (searchTerm) {
+        options.search = searchTerm;
+      }
+      
+      const response = await quizAPI.getQuestions(currentPage, itemsPerPage, options);
       
       if (response.success) {
         const { questions, pagination } = response.data;
@@ -68,6 +74,18 @@ const QuizManager = () => {
       controller.abort();
     };
   }, [currentPage]); // Chỉ gọi lại khi currentPage thay đổi
+
+  // Xử lý tìm kiếm
+  const handleSearch = () => {
+    setCurrentPage(1); // Reset về trang 1 khi tìm kiếm
+    fetchQuestions();
+  };
+
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
   
   // Xử lý thay đổi form
   const handleFormChange = (e) => {
@@ -204,6 +222,18 @@ const QuizManager = () => {
           <h2>📝 Quản lý câu hỏi "Hỏi Ngu"</h2>
           <p>Tổng số câu hỏi: {totalQuestions}</p>
         </div>
+
+        <div className="search-box">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyPress={handleSearchKeyPress}
+            placeholder="Tìm kiếm câu hỏi..."
+          />
+          <Button onClick={handleSearch}>🔍 Tìm kiếm</Button>
+        </div>
+        
         <div className="quiz-actions">
           <Button onClick={handleOpenAddModal} className="add-btn">
             ➕ Thêm câu hỏi
@@ -231,14 +261,16 @@ const QuizManager = () => {
                       <button
                         className="edit-btn"
                         onClick={() => handleOpenEditModal(question)}
+                        title="Sửa câu hỏi"
                       >
-                        ✏️ Sửa
+                        ✏️
                       </button>
                       <button
                         className="delete-btn"
                         onClick={() => handleOpenDeleteModal(question)}
+                        title="Xóa câu hỏi"
                       >
-                        🗑️ Xóa
+                        🗑️
                       </button>
                     </div>
                   </div>

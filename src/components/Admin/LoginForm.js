@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import Button from '../common/Button';
-import { setAuth } from '../../utils/auth';
 import { showSuccess, showError } from '../../utils/toast';
+import { authAPI } from '../../services/api';
 import './LoginForm.css';
 
 /**
@@ -26,40 +25,35 @@ const LoginForm = ({ onLogin }) => {
     
     try {
       setLoading(true);
-    setError('');
+      setError('');
 
       // Gọi API đăng nhập
-      const response = await axios.post('http://localhost:3001/api/auth/login', {
+      const response = await authAPI.login({
         username,
         password
       });
       
-      if (response.data.success) {
-        // Lưu token và thông tin admin
-        const adminData = {
-          id: response.data.data.id,
-          username: response.data.data.username,
-          role: response.data.data.role
-        };
-        
-        setAuth(response.data.data.token, adminData);
-        
+      console.log("Login response:", response);
+      
+      if (response && response.success) {
         // Hiển thị thông báo thành công
-        showSuccess(`Đăng nhập thành công! Xin chào ${adminData.username}`);
+        showSuccess(`Đăng nhập thành công! Xin chào ${username}`);
         
         // Callback đăng nhập thành công
-        onLogin(adminData);
+        console.log("Calling onLogin callback with:", true);
+        onLogin(true);
       } else {
-        setError(response.data.message || 'Đăng nhập không thành công');
+        // Hiển thị lỗi
+        const errorMessage = response?.message || 'Đăng nhập không thành công';
+        setError(errorMessage);
+        showError(errorMessage);
       }
     } catch (error) {
       console.error('Lỗi đăng nhập:', error);
       
-      if (error.response && error.response.data) {
-        setError(error.response.data.message || 'Đăng nhập không thành công');
-    } else {
-        setError('Không thể kết nối đến server. Vui lòng thử lại sau.');
-      }
+      const errorMessage = error?.response?.data?.message || 'Không thể kết nối đến server. Vui lòng thử lại sau.';
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }

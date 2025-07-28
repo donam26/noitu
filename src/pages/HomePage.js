@@ -94,15 +94,27 @@ const HomePage = () => {
   return (
     <div className="home-page">
       <div className="home-container">
+        {/* Header Section */}
+        <section className="hero-section fade-in">
+          <h1 className="section-title text-center">Game Hub</h1>
+          <p className="section-subtitle text-center">
+            Thư giãn và phát triển trí não với các trò chơi thú vị
+          </p>
+        </section>
+        
         {/* Games Section */}
         <section className="games-section">
           <div className="games-grid">
-            {games.map((game) => (
-              <div key={game.id} className={`game-card ${!game.available ? 'disabled' : ''}`}>
-                
+            {games.map((game, index) => (
+              <div 
+                key={game.id} 
+                className={`game-card slide-up ${!game.available ? 'disabled' : ''}`}
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
                 <div className="game-content">
-                  <h3 className="game-title">{game.title}</h3>
-                  
+                  <h3 className="game-title">
+                    <span className="game-icon">{game.icon}</span> {game.title}
+                  </h3>
                 </div>
                 
                 <div className="game-footer">

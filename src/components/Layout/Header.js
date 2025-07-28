@@ -4,13 +4,21 @@ import './Header.css';
 
 /**
  * Component Header - Thanh điều hướng chính
+ * @param {Object} props - Props của component
+ * @param {string} props.layoutType - Loại layout: 'default', 'game', 'home' (mặc định: 'default')
  */
-const Header = () => {
+const Header = ({ layoutType = 'default' }) => {
   const location = useLocation();
   const isHomePage = location.pathname === '/';
 
+  // Xác định class dựa trên loại layout
+  const headerClasses = [
+    'header',
+    `header-${layoutType}`
+  ].filter(Boolean).join(' ');
+
   return (
-    <header className="header">
+    <header className={headerClasses}>
       <div className="header-container">
         <div className="logo-section">
           <Link to="/" className="logo-link">
