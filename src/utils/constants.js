@@ -1,5 +1,5 @@
 // API Base URL
-export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://103.216.117.180:3001/api';
+export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://winhouse.id.vn/api';
 
 // Các hằng số cho các game
 export const GAME_CONFIG = {
