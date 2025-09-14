@@ -243,17 +243,6 @@ const GameScreen = ({ onBackHome }) => {
           </div>
         </div>
 
-        {/* Game Mode */}
-        <div className="game-mode">
-          <Button 
-            variant={showWordMeaning ? "primary" : "secondary"}
-            onClick={toggleWordMeaning}
-            className="meaning-btn"
-          >
-            {showWordMeaning ? 'Ẩn nghĩa từ' : 'Hiện nghĩa từ'}
-          </Button>
-        </div>
-
         {/* Timer */}
         {!isGameOver && (
           <Timer
@@ -284,17 +273,21 @@ const GameScreen = ({ onBackHome }) => {
         {!isGameOver && (
           <form onSubmit={handleSubmit} className="input-form">
             <div className="input-group">
-              <div className="prefix-input-container">
-                <span className="prefix-input">{connectionHint}</span>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="..."
-                  className="word-input with-prefix"
-                  disabled={isGameOver || showModal || isLoading}
-                />
+              <div className="modern-input-container">
+                <div className="prefix-section">
+                  <span className="prefix-text">{connectionHint}</span>
+                </div>
+                <div className="input-section">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    placeholder="nhập từ tiếp theo..."
+                    className="modern-input"
+                    disabled={isGameOver || showModal || isLoading}
+                  />
+                </div>
               </div>
               <Button 
                 type="submit" 

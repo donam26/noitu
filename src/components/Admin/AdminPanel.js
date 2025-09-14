@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Dashboard from './Dashboard';
 import QuizManager from './QuizManager';
 import BehaviorQuizManager from './BehaviorQuizManager';
 import KnowledgeQuizManager from './KnowledgeQuizManager';
@@ -15,7 +16,7 @@ import { quizAPI, behaviorAPI, knowledgeAPI, questionAPI, authAPI } from '../../
  * @param {Function} props.onLogout - Callback khi đăng xuất
  */
 const AdminPanel = ({ onLogout }) => {
-  const [activeTab, setActiveTab] = useState('quiz');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [isLoadingCounts, setIsLoadingCounts] = useState(false);
   
   // State lưu số lượng câu hỏi
@@ -174,6 +175,13 @@ const AdminPanel = ({ onLogout }) => {
 
   const tabs = [
     {
+      id: 'dashboard',
+      label: '📊 Tổng quan',
+      icon: '📊',
+      component: Dashboard,
+      count: null
+    },
+    {
       id: 'quiz',
       label: '📝 Vua Hỏi Ngu',
       icon: '📝',
@@ -217,8 +225,7 @@ const AdminPanel = ({ onLogout }) => {
       {/* Sidebar */}
       <aside className="admin-sidebar">
         <div className="sidebar-header">
-          <h1>⚡ Admin Panel</h1>
-          <p>Game Hub</p>
+          <h1>⚡ Admin Dashboard</h1>
         </div>
 
         <nav className="sidebar-nav">

@@ -20,7 +20,8 @@ const WordScrambleScreen = ({ onBackHome }) => {
   const [gameState, setGameState] = useState('playing'); // 'playing', 'won', 'lost'
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState({});
-  
+  const [usedWords, setUsedWords] = useState([]); // Lưu các từ đã dùng
+
   const inputRef = useRef(null);
   const timerKey = useRef(0);
 
@@ -32,14 +33,19 @@ const WordScrambleScreen = ({ onBackHome }) => {
   // Bắt đầu vòng chơi mới
   const startNewRound = async () => {
     try {
-      // Lấy từ ngẫu nhiên từ API
-      const response = await axios.get(`${API_BASE_URL}/games/word-scramble/random`);
+      // Gửi yêu cầu lấy từ ngẫu nhiên, loại trừ các từ đã dùng
+      const response = await axios.post(`${API_BASE_URL}/games/word-scramble/random`, {
+        exclude: usedWords
+      });
       const wordData = response.data;
-      
+
       setOriginalWord(wordData.originalWord);
+
+      // Cập nhật danh sách từ đã dùng
+      setUsedWords(prev => [...prev, wordData.originalWord]);
       setScrambledWord(wordData.scrambledWord);
       setFormattedDisplay(wordData.formattedDisplay);
-      
+
       // Thiết lập trạng thái mới
       setUserInput('');
       setMessage('');
@@ -66,9 +72,9 @@ const WordScrambleScreen = ({ onBackHome }) => {
   // Xử lý khi người chơi gửi câu trả lời
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (gameState !== 'playing') return;
-    
+
     if (!userInput.trim()) {
       setModalContent({
         title: 'Thiếu thông tin',
@@ -77,7 +83,7 @@ const WordScrambleScreen = ({ onBackHome }) => {
       setShowModal(true);
       return;
     }
-    
+
     try {
       // Gửi câu trả lời đến API để kiểm tra
       const response = await axios.post(`${API_BASE_URL}/games/word-scramble/check`, {
@@ -85,9 +91,9 @@ const WordScrambleScreen = ({ onBackHome }) => {
         userAnswer: userInput,
         timeLeft
       });
-      
+
       const result = response.data;
-      
+
       if (result.correct) {
         // Chỉ cộng 1 điểm và bắt đầu vòng chơi mới ngay lập tức
         setScore(prevScore => prevScore + 1);
@@ -127,14 +133,14 @@ const WordScrambleScreen = ({ onBackHome }) => {
     setShowModal(false);
     startNewRound();
   };
-  
+
   // Xử lý khi hết thời gian
   const handleTimeUp = () => {
     setGameState('lost');
-    
+
     // Hiển thị toast thông báo đáp án đúng khi hết giờ
     showError(`Hết giờ! Từ đúng là: "${originalWord}"`);
-    
+
     // Hiển thị modal kết quả trò chơi với điểm số
     setModalContent({
       title: 'Kết thúc trò chơi!',
@@ -143,11 +149,11 @@ const WordScrambleScreen = ({ onBackHome }) => {
     });
     setShowModal(true);
   };
-  
+
   // Đóng modal
   const handleCloseModal = () => {
     setShowModal(false);
-    
+
     if (gameState === 'won') {
       startNewRound();
     }
@@ -163,8 +169,8 @@ const WordScrambleScreen = ({ onBackHome }) => {
       <div className="game-container">
         {/* Header */}
         <div className="game-header">
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             onClick={onBackHome}
             className="back-btn"
           >
@@ -185,14 +191,14 @@ const WordScrambleScreen = ({ onBackHome }) => {
             isActive={gameState === 'playing' && !showModal}
           />
         )}
-        
+
         {/* Từ đảo lộn */}
         <div className="current-word-section">
           <h2 className="section-title">Sắp xếp lại thành từ có nghĩa:</h2>
           <div className="current-word">
             {formattedDisplay}
           </div>
-          
+
           {/* Gợi ý */}
           {showHint && (
             <div className="word-meaning">
@@ -215,18 +221,18 @@ const WordScrambleScreen = ({ onBackHome }) => {
                 className="word-input"
               />
               <div className="button-container">
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   variant="primary"
                   disabled={!userInput.trim()}
                 >
                   Gửi
                 </Button>
-                
-                <Button 
-                  type="button" 
+
+                <Button
+                  type="button"
                   variant="secondary"
-                  onClick={showWordHint} 
+                  onClick={showWordHint}
                   disabled={showHint}
                 >
                   Gợi ý
@@ -235,12 +241,12 @@ const WordScrambleScreen = ({ onBackHome }) => {
             </div>
           </form>
         )}
-        
+
         {/* Game Over Actions */}
         {gameState !== 'playing' && (
           <div className="game-over-actions">
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               onClick={handlePlayAgain}
               className="action-btn"
             >
@@ -265,4 +271,4 @@ const WordScrambleScreen = ({ onBackHome }) => {
   );
 };
 
-export default WordScrambleScreen; 
+export default WordScrambleScreen;

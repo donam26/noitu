@@ -1158,46 +1158,42 @@ export const gameDataAPI = {
         
         // Kiểm tra và tiêu chuẩn hóa định dạng dữ liệu phản hồi
         if (response?.data) {
-          // Trường hợp 1: API trả về đúng định dạng
-          if (response.data.result && 
-              Array.isArray(response.data.result) && 
+          // Trường hợp 1: API trả về đúng định dạng với success và data
+          if (response.data.success && response.data.data) {
+            const responseData = response.data.data;
+
+            // Kiểm tra xem có đầy đủ dữ liệu Wordle không
+            if (responseData.result &&
+                Array.isArray(responseData.result) &&
+                responseData.letterStates &&
+                typeof responseData.isCorrect === 'boolean') {
+              console.log('API trả về đúng định dạng Wordle data');
+              return {
+                success: true,
+                data: responseData
+              };
+            }
+          }
+
+          // Trường hợp 2: API trả về trực tiếp (không có success wrapper)
+          if (response.data.result &&
+              Array.isArray(response.data.result) &&
               typeof response.data.isCorrect === 'boolean') {
+            console.log('API trả về trực tiếp định dạng Wordle');
             return {
               success: true,
               data: response.data
             };
           }
-          
-          // Trường hợp 2: API trả về thành công nhưng không có dữ liệu đầy đủ
-          if (response.data.success && !response.data.result) {
+
+          // Trường hợp 3: API trả về thành công nhưng thiếu dữ liệu result
+          if (response.data.success && !response.data.data?.result) {
             console.log('API phản hồi thành công nhưng thiếu dữ liệu result, sử dụng client-side check');
             const clientResult = checkWordleGuessClientSide(data.guess, data.targetWord);
             return {
               success: true,
               data: clientResult
             };
-          }
-          
-          // Trường hợp 3: API trả về dữ liệu với cấu trúc khác
-          if (response.data) {
-            console.log('API trả về cấu trúc khác, đang cố gắng xử lý:', response.data);
-            // Trường hợp API trả về { data: { result, isCorrect, letterStates } }
-            if (response.data.data && response.data.data.result) {
-              return {
-                success: true,
-                data: response.data.data
-              };
-            }
-            
-            // Trường hợp API trả về { valid: true } hoặc các cấu trúc khác
-            if (response.data.valid === true || response.data.success === true) {
-              console.log('API xác nhận từ hợp lệ nhưng thiếu kết quả chi tiết, sử dụng client-side check');
-              const clientResult = checkWordleGuessClientSide(data.guess, data.targetWord);
-              return {
-                success: true,
-                data: clientResult
-              };
-            }
           }
         }
         
@@ -1236,6 +1232,167 @@ export const gameDataAPI = {
       };
     } catch (error) {
       console.error('Lỗi khi lấy gợi ý:', error);
+      return handleError(error);
+    }
+  },
+
+  // === Word Chain Management APIs ===
+
+  // Lấy danh sách từ vựng cho game nối từ
+  getWordChainWords: async (page = 1, limit = 20, searchTerm = '') => {
+    try {
+      const params = { page, limit };
+      if (searchTerm) params.search = searchTerm;
+
+      const response = await api.get('/games/word-chain/words', { params });
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Thêm từ mới cho game nối từ
+  addWordChainWord: async (wordData) => {
+    try {
+      const response = await api.post('/games/word-chain/words', wordData);
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Cập nhật từ trong game nối từ
+  updateWordChainWord: async (id, wordData) => {
+    try {
+      const response = await api.put(`/games/word-chain/words/${id}`, wordData);
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Xóa từ trong game nối từ
+  deleteWordChainWord: async (id) => {
+    try {
+      const response = await api.delete(`/games/word-chain/words/${id}`);
+      return {
+        success: response.data.success,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Import nhiều từ cùng lúc cho game nối từ
+  bulkImportWordChainWords: async (wordsData) => {
+    try {
+      const response = await api.post('/games/word-chain/words/bulk-import', { words: wordsData });
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  }
+};
+
+// Service cho quản lý từ vựng Wordle
+export const wordleWordAPI = {
+  // Lấy danh sách từ vựng
+  getWords: async (page = 1, limit = 20, options = {}) => {
+    try {
+      const params = { page, limit, ...options };
+      const response = await api.get('/wordle-words', { params });
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Lấy chi tiết từ vựng
+  getWordById: async (id) => {
+    try {
+      const response = await api.get(`/wordle-words/${id}`);
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Thêm từ vựng mới
+  addWord: async (wordData) => {
+    try {
+      const response = await api.post('/wordle-words', wordData);
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Cập nhật từ vựng
+  updateWord: async (id, wordData) => {
+    try {
+      const response = await api.put(`/wordle-words/${id}`, wordData);
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Xóa từ vựng
+  deleteWord: async (id) => {
+    try {
+      const response = await api.delete(`/wordle-words/${id}`);
+      return {
+        success: response.data.success,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Nhập hàng loạt từ vựng
+  bulkImportWords: async (wordsData) => {
+    try {
+      const response = await api.post('/wordle-words/bulk-import', { words: wordsData });
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
       return handleError(error);
     }
   }

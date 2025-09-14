@@ -24,7 +24,7 @@ const AdminLayout = ({ children }) => {
     if (path.includes('/admin/quiz')) return 'quiz';
     if (path.includes('/admin/behavior')) return 'behavior';
     if (path.includes('/admin/knowledge')) return 'knowledge';
-    if (path.includes('/admin/wordchain')) return 'wordchain';
+    if (path.includes('/admin/vocabulary')) return 'vocabulary';
     if (path.includes('/admin/ai')) return 'ai';
     return 'dashboard'; // Mặc định là dashboard
   };
@@ -151,10 +151,10 @@ const AdminLayout = ({ children }) => {
       count: knowledgeCount
     },
     {
-      id: 'wordchain',
-      label: 'Từ vựng nối từ',
-      icon: '🔄',
-      path: '/admin/wordchain',
+      id: 'vocabulary',
+      label: 'Quản lý từ vựng',
+      icon: '📚',
+      path: '/admin/vocabulary',
       count: null
     },
     {

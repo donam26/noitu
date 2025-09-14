@@ -6,7 +6,7 @@ import DashboardPage from '../Admin/DashboardPage';
 import QuizAdminPage from '../Admin/QuizAdminPage';
 import BehaviorQuizAdminPage from '../Admin/BehaviorQuizAdminPage';
 import KnowledgeQuizAdminPage from '../Admin/KnowledgeQuizAdminPage';
-import WordChainAdminPage from '../Admin/WordChainAdminPage';
+import WordleWordsPage from '../Admin/WordleWordsPage';
 import AIAssistantPage from '../Admin/AIAssistantPage';
 import './AdminPage.css';
 import { authAPI } from '../../services/api';
@@ -125,13 +125,13 @@ const AdminPage = () => {
           <KnowledgeQuizAdminPage />
         </AdminLayout>
       } />
-      
-      <Route path="wordchain" element={
+
+      <Route path="vocabulary" element={
         <AdminLayout>
-          <WordChainAdminPage />
+          <WordleWordsPage />
         </AdminLayout>
       } />
-      
+
       <Route path="ai" element={
         <AdminLayout>
           <AIAssistantPage />

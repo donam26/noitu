@@ -28,7 +28,7 @@ const VIETNAMESE_KEYBOARD_ROWS = [
 const createConfetti = () => {
   const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#ff69b4'];
   const confettiCount = 150;
-  
+
   for (let i = 0; i < confettiCount; i++) {
     const confetti = document.createElement('div');
     confetti.style.position = 'fixed';
@@ -42,9 +42,9 @@ const createConfetti = () => {
     confetti.style.zIndex = '9999';
     confetti.style.animation = `confetti-fall ${Math.random() * 2 + 2}s ease-out forwards`;
     confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
-    
+
     document.body.appendChild(confetti);
-    
+
     setTimeout(() => {
       if (confetti.parentNode) {
         confetti.parentNode.removeChild(confetti);
@@ -114,46 +114,46 @@ const WordleScreen = () => {
       setShowResultModal(false);
       setWordMeaning(null);
       setErrorMessage('');
-      
+
       // Reset game state về mặc định trước khi lấy từ mới
       setGameState({...initialGameState});
-      
+
       // Lấy từ mới từ API
       const response = await gameDataAPI.getRandomWordleWord();
       console.log('API trả về:', response);
-      
+
       // Kiểm tra phản hồi
       if (!response) {
         throw new Error('Không nhận được phản hồi từ server');
       }
-      
+
       if (!response.success) {
         const errorMsg = response.message || 'Không thể tải từ mới';
         throw new Error(errorMsg);
       }
-      
+
       // Kiểm tra dữ liệu
       if (!response.data) {
         console.error('Response không có data:', response);
         throw new Error('Dữ liệu từ không hợp lệ - không có response.data');
       }
-      
+
       if (!response.data.word) {
         console.error('Data không có word:', response.data);
         throw new Error('Dữ liệu từ không hợp lệ - không có response.data.word');
       }
-      
+
       const word = response.data.word;
       console.log('Từ được chọn:', word);
-      
+
       // Loại bỏ dấu cách cho việc tính toán độ dài thực tế
       const cleanWord = word.replace(/\s+/g, '');
       const wordLength = cleanWord.length;
-      
+
       if (wordLength < 2 || wordLength > 8) {
         throw new Error(`Độ dài từ không phù hợp: ${wordLength} ký tự`);
       }
-      
+
       // Cập nhật state game với từ mới và độ dài từ
       setGameState(prevState => ({
         ...prevState,
@@ -166,7 +166,7 @@ const WordleScreen = () => {
         cellStates: Array(6).fill().map(() => Array(8).fill(LETTER_STATES.UNUSED)),
         isInitialized: true // Đánh dấu đã khởi tạo thành công
       }));
-      
+
       console.log(`Khởi tạo game với từ: ${word} (độ dài: ${wordLength})`);
       setIsLoading(false);
     } catch (error) {
@@ -188,13 +188,26 @@ const WordleScreen = () => {
   // Khởi tạo game khi component mount
   useEffect(() => {
     initializeGame();
-    
+
     // Cleanup function
     return () => {
       // Dọn dẹp các timeout, event listeners khi component unmount
       setShowResultModal(false);
     };
   }, []);
+
+
+  // Hiển thị modal kết quả khi game kết thúc
+  useEffect(() => {
+    if (gameState.gameStatus === GAME_STATUS.WON || gameState.gameStatus === GAME_STATUS.LOST) {
+      // Thêm một độ trễ nhỏ để animation hoàn tất
+      const timer = setTimeout(() => {
+        setShowResultModal(true);
+      }, 1200); // 1200ms để chờ animation lật chữ
+
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.gameStatus]);
 
   // Tính thời gian đã trôi qua
   const getElapsedTime = () => {
@@ -208,19 +221,19 @@ const WordleScreen = () => {
   // Xử lý nhập chữ cái
   const handleLetterInput = async (letter) => {
     if (gameState.gameStatus !== GAME_STATUS.IN_PROGRESS) return;
-    
+
     const { currentRow, currentCol, board, wordLength } = gameState;
-    
+
     if (currentCol < wordLength) {
       const newBoard = [...board];
       newBoard[currentRow][currentCol] = letter;
-      
+
       setGameState(prevState => ({
         ...prevState,
         board: newBoard,
         currentCol: currentCol + 1
       }));
-      
+
       playSound('key');
     }
   };
@@ -228,19 +241,19 @@ const WordleScreen = () => {
   // Xử lý xóa
   const handleBackspace = () => {
     if (gameState.gameStatus !== GAME_STATUS.IN_PROGRESS) return;
-    
+
     const { currentRow, currentCol, board } = gameState;
-    
+
     if (currentCol > 0) {
       const newBoard = [...board];
       newBoard[currentRow][currentCol - 1] = '';
-      
+
       setGameState(prevState => ({
         ...prevState,
         board: newBoard,
         currentCol: currentCol - 1
       }));
-      
+
       playSound('backspace');
     }
   };
@@ -248,28 +261,28 @@ const WordleScreen = () => {
   // Xử lý gửi đoán
   const handleSubmitGuess = async () => {
     if (gameState.gameStatus !== GAME_STATUS.IN_PROGRESS) return;
-    
+
     const { currentRow, currentCol, board, targetWord, wordLength } = gameState;
-    
+
     if (currentCol < wordLength) {
       showMessage(`Bạn chưa điền đủ ${wordLength} ký tự!`, 'error');
       return;
     }
-    
+
     // Lấy đoán hiện tại, chỉ lấy các ký tự đã nhập
     const currentGuessArray = board[currentRow].slice(0, wordLength);
     const currentGuess = currentGuessArray.join('');
-    
+
     // Hiển thị trạng thái kiểm tra
     setIsAnimating(false);
     showMessage('Đang kiểm tra...', 'info');
-    
+
     try {
       // Kiểm tra từ hợp lệ
       console.log(`Kiểm tra từ "${currentGuess}"`);
       const validResponse = await gameDataAPI.validateWordleGuess(currentGuess);
       console.log('Kết quả kiểm tra từ hợp lệ:', validResponse);
-      
+
       // Nếu từ không hợp lệ, thông báo và không tiếp tục
       if (!validResponse.success || (validResponse.data && validResponse.data.valid === false)) {
         const errorMsg = validResponse.data?.message || 'Từ không hợp lệ!';
@@ -278,37 +291,37 @@ const WordleScreen = () => {
         setTimeout(() => setIsAnimating(false), 500);
         return;
       }
-      
+
       // Từ hợp lệ, tiếp tục kiểm tra với từ đích
       console.log(`Gửi đoán "${currentGuess}" với từ đích "${targetWord}"`);
-      
+
       // Hiển thị trạng thái đang xử lý
       showMessage('Đang xử lý...', 'info');
-      
+
       try {
         // Gửi đoán và nhận kết quả
         const response = await gameDataAPI.checkWordleGuess({
           guess: currentGuess,
           targetWord: targetWord
         });
-        
+
         // Kiểm tra phản hồi
         if (!response || !response.success || !response.data) {
           throw new Error('Không nhận được phản hồi đúng định dạng từ server');
         }
-        
+
         // Xử lý kết quả
         const { result, letterStates, isCorrect } = response.data;
-        
+
         console.log('Kết quả kiểm tra từ:', response.data);
-        
+
         if (!result || !Array.isArray(result)) {
           throw new Error('Kết quả không hợp lệ - không có mảng result');
         }
-        
+
         // Xóa thông báo đang xử lý
         setMessage('');
-        
+
         // Cập nhật trạng thái ô
         const newCellStates = [...gameState.cellStates];
         result.forEach((state, index) => {
@@ -316,10 +329,10 @@ const WordleScreen = () => {
             newCellStates[currentRow][index] = state;
           }
         });
-        
+
         // Cập nhật trạng thái chữ cái
         const newLetterStates = { ...gameState.letterStates };
-        
+
         // Kết hợp các trạng thái chữ cái mới, ưu tiên trạng thái cao hơn
         if (letterStates) {
           Object.entries(letterStates).forEach(([key, value]) => {
@@ -328,23 +341,23 @@ const WordleScreen = () => {
             const states = ['unused', 'absent', 'present', 'correct'];
             const currentIdx = states.indexOf(currentState);
             const newIdx = states.indexOf(value);
-            
+
             if (newIdx > currentIdx) {
               newLetterStates[key] = value;
             }
           });
         }
-        
+
         // Cập nhật trạng thái trò chơi
         let newGameStatus = gameState.gameStatus;
-        
+
         if (isCorrect) {
           newGameStatus = GAME_STATUS.WON;
           setGameTime(getElapsedTime());
           playSound('win');
           createConfetti();
-          setTimeout(() => setShowResultModal(true), 1000);
-          
+
+
           // Lấy nghĩa của từ
           try {
             const meaningResponse = await gameDataAPI.getWordMeaning(targetWord);
@@ -359,8 +372,8 @@ const WordleScreen = () => {
           newGameStatus = GAME_STATUS.LOST;
           setGameTime(getElapsedTime());
           playSound('lose');
-          setTimeout(() => setShowResultModal(true), 1000);
-          
+
+
           // Lấy nghĩa của từ
           try {
             const meaningResponse = await gameDataAPI.getWordMeaning(targetWord);
@@ -371,7 +384,7 @@ const WordleScreen = () => {
             console.error('Không thể lấy nghĩa của từ:', err);
           }
         }
-        
+
         setGameState(prevState => ({
           ...prevState,
           cellStates: newCellStates,
@@ -380,30 +393,30 @@ const WordleScreen = () => {
           currentCol: 0,
           gameStatus: newGameStatus
         }));
-        
+
         playSound('submit');
       } catch (checkError) {
         console.error('Lỗi khi kiểm tra đoán với từ đích:', checkError);
-        
+
         // Cố gắng sử dụng client-side check trong trường hợp lỗi
         try {
           console.log('Thử sử dụng client-side check');
-          
+
           // Import lại hàm từ api.js
-          const clientResult = window.checkWordleGuessClientSide 
+          const clientResult = window.checkWordleGuessClientSide
             ? window.checkWordleGuessClientSide(currentGuess, targetWord)
-            : { 
+            : {
                 result: Array(wordLength).fill('absent'),
                 letterStates: {},
                 isCorrect: false
               };
-          
+
           console.log('Client-side check result:', clientResult);
-          
+
           if (!clientResult || !clientResult.result) {
             throw new Error('Kiểm tra client-side thất bại');
           }
-          
+
           // Cập nhật trạng thái ô
           const newCellStates = [...gameState.cellStates];
           clientResult.result.forEach((state, index) => {
@@ -411,23 +424,23 @@ const WordleScreen = () => {
               newCellStates[currentRow][index] = state;
             }
           });
-          
+
           // Cập nhật trạng thái chữ cái
           const newLetterStates = { ...gameState.letterStates };
-          
+
           if (clientResult.letterStates) {
             Object.entries(clientResult.letterStates).forEach(([key, value]) => {
               const currentState = newLetterStates[key] || 'unused';
               const states = ['unused', 'absent', 'present', 'correct'];
               const currentIdx = states.indexOf(currentState);
               const newIdx = states.indexOf(value);
-              
+
               if (newIdx > currentIdx) {
                 newLetterStates[key] = value;
               }
             });
           }
-          
+
           // Cập nhật game state
           setGameState(prevState => ({
             ...prevState,
@@ -436,7 +449,7 @@ const WordleScreen = () => {
             currentRow: currentRow + 1,
             currentCol: 0
           }));
-          
+
           playSound('submit');
           setMessage(''); // Xóa thông báo đang xử lý
         } catch (clientSideError) {
@@ -457,24 +470,24 @@ const WordleScreen = () => {
   // Xử lý gợi ý
   const handleHint = async () => {
     if (gameState.gameStatus !== GAME_STATUS.IN_PROGRESS) return;
-    
+
     if (gameState.hintCount >= 3) {
       showMessage('Bạn đã sử dụng hết gợi ý!', 'error');
       return;
     }
-    
+
     try {
       const response = await gameDataAPI.getWordleHint({
         targetWord: gameState.targetWord,
         hintCount: gameState.hintCount
       });
-      
+
       if (!response.success) {
         throw new Error('Lỗi khi lấy gợi ý');
       }
-      
+
       showMessage(response.data.hint, 'hint');
-      
+
       setGameState(prevState => ({
         ...prevState,
         hintCount: prevState.hintCount + 1
@@ -489,9 +502,9 @@ const WordleScreen = () => {
   useEffect(() => {
     const handleKeyDown = (event) => {
       const key = event.key.toLowerCase();
-      
+
       if (gameState.gameStatus !== GAME_STATUS.IN_PROGRESS) return;
-      
+
       if (key === 'enter') {
         handleSubmitGuess();
       } else if (key === 'backspace') {
@@ -500,7 +513,7 @@ const WordleScreen = () => {
         handleLetterInput(key);
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameState]);
@@ -521,7 +534,7 @@ const WordleScreen = () => {
       {VIETNAMESE_KEYBOARD_ROWS.map((row, rowIndex) => (
         <div key={`keyboard-row-${rowIndex}`} className="keyboard-row">
           {row.map(key => (
-            <button 
+            <button
               key={`key-${key}`}
               className={`keyboard-key ${key === 'ENTER' || key === 'BACKSPACE' ? 'keyboard-key-wide' : ''} ${getKeyState(key)}`}
               onClick={() => {
@@ -545,8 +558,8 @@ const WordleScreen = () => {
       {gameState.board.map((row, rowIndex) => (
         <div key={`row-${rowIndex}`} className="wordle-row">
           {row.slice(0, gameState.wordLength).map((letter, colIndex) => (
-            <div 
-              key={`cell-${rowIndex}-${colIndex}`} 
+            <div
+              key={`cell-${rowIndex}-${colIndex}`}
               className={`wordle-cell ${getCellState(rowIndex, colIndex)}`}
             >
               {letter}
@@ -583,8 +596,8 @@ const WordleScreen = () => {
           </div>
         </div>
         <div className="tutorial-buttons">
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={() => setShowTutorial(false)}
           >
             Bắt đầu chơi
@@ -598,28 +611,28 @@ const WordleScreen = () => {
   const ResultModal = () => {
     // Chỉ hiển thị khi game thực sự kết thúc và đã được khởi tạo thành công
     if (!showResultModal || !gameState.isInitialized) return null;
-    
+
     // Kiểm tra điều kiện hiển thị kết quả
     if (gameState.gameStatus !== GAME_STATUS.WON && gameState.gameStatus !== GAME_STATUS.LOST) {
       console.warn('Kết quả hiển thị khi game chưa kết thúc!');
       return null;
     }
-    
+
     const isWon = gameState.gameStatus === GAME_STATUS.WON;
-    
+
     return (
       <div className="modal-overlay visible">
         <div className="modal-content result">
           <h2>{isWon ? '🎉 Chúc mừng!' : '😞 Rất tiếc!'}</h2>
-          
+
           <div className="result-details">
-            {isWon 
+            {isWon
               ? <p>Bạn đã đoán đúng từ <strong>{gameState.targetWord}</strong> trong {gameState.currentRow} lượt!</p>
               : <p>Bạn không thể đoán được từ <strong>{gameState.targetWord}</strong>.</p>
             }
             <p>Thời gian chơi: {gameTime}</p>
           </div>
-          
+
           {wordMeaning && (
             <div className="word-meaning">
               <h4>Ý nghĩa:</h4>
@@ -632,20 +645,20 @@ const WordleScreen = () => {
               )}
             </div>
           )}
-          
+
           <div className="result-actions">
             <Button onClick={resetGame} variant="primary">Chơi lại</Button>
             <Button onClick={() => setShowResults(!showResults)} variant="secondary">
               {showResults ? 'Ẩn chi tiết' : 'Xem chi tiết'}
             </Button>
           </div>
-          
+
           {showResults && (
             <div className="result-board">
               {gameState.cellStates.slice(0, gameState.currentRow).map((row, rowIndex) => (
                 <div key={`result-row-${rowIndex}`} className="result-row">
                   {row.slice(0, gameState.wordLength).map((state, colIndex) => (
-                    <div 
+                    <div
                       key={`result-cell-${rowIndex}-${colIndex}`}
                       className={`result-cell ${state}`}
                     >
@@ -680,33 +693,33 @@ const WordleScreen = () => {
         // Màn hình game
         <>
           <h1 className="game-title">Wordle Tiếng Việt</h1>
-          
+
           {/* Hiển thị thông báo */}
           {message && (
             <div className={`message ${message.type}`}>
               {message.text}
             </div>
           )}
-          
+
           {/* Bảng chơi */}
           {renderBoard()}
-          
+
           {/* Bàn phím ảo */}
           {renderKeyboard()}
-          
+
           {/* Nút gợi ý */}
           <div className="hint-container">
-            <Button 
+            <Button
               onClick={handleHint}
               disabled={gameState.hintCount >= 3 || gameState.gameStatus !== GAME_STATUS.IN_PROGRESS}
             >
               Gợi ý ({3 - gameState.hintCount})
             </Button>
           </div>
-          
+
           {/* Modal hướng dẫn */}
           {showTutorial && <TutorialModal />}
-          
+
           {/* Modal kết quả */}
           {showResultModal && <ResultModal />}
         </>
@@ -715,4 +728,4 @@ const WordleScreen = () => {
   );
 };
 
-export default WordleScreen; 
+export default WordleScreen;

@@ -10,6 +10,10 @@
   box-shadow: var(--shadow-lg);
 }
 
+.modal-content {
+    color: var(--text-dark);
+}
+
 .wordle-container h1 {
   font-size: var(--text-3xl);
   font-weight: 700;

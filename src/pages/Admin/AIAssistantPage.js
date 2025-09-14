@@ -1,60 +1,53 @@
-import React from 'react';
-import AIAssistant from '../../components/Admin/AIAssistant';
-import { quizAPI, behaviorAPI, knowledgeAPI } from '../../services/api';
+import React, { useState, useEffect } from 'react';
+import { gameDataAPI } from '../../services/api';
 import { showSuccess, showError } from '../../utils/toast';
-import './AIAssistantPage.css';
+import './AIAssistant.css';
 
-/**
- * AIAssistantPage - Trang AI Assistant để tạo câu hỏi tự động
- */
-const AIAssistantPage = () => {
-  // Callback để thêm câu hỏi từ AI vào hệ thống
-  const handleAddQuestions = async (newQuestions, questionType = 'quiz') => {
-    console.log(`🤖 AI thêm ${newQuestions.length} câu hỏi ${questionType} mới`);
-    
-    try {
-      let response;
-      let eventName;
-      
-      switch (questionType) {
-        case 'behavior':
-          response = await behaviorAPI.bulkAddQuestions(newQuestions);
-          eventName = 'behaviorQuestionsUpdated';
-          break;
-        case 'knowledge':
-          response = await knowledgeAPI.bulkAddQuestions(newQuestions);
-          eventName = 'knowledgeQuestionsUpdated';
-          break;
-        default:
-          response = await quizAPI.bulkAddQuestions(newQuestions);
-          eventName = 'questionsUpdated';
-      }
+const AIAssistant = () => {
+  const [aiStatus, setAiStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-      if (response.success) {
-        console.log(`✅ Đã thêm câu hỏi ${questionType} thành công vào database`);
-        
-        // Emit event để manager tương ứng reload
-        window.dispatchEvent(new CustomEvent(eventName));
-        console.log(`📡 Đã emit event ${eventName}`);
-        
-        // Thông báo thành công
-        showSuccess(`✅ Đã thêm ${newQuestions.length} câu hỏi ${questionType} vào database!`);
-        return true;
-      } else {
-        throw new Error(response.message || 'Lỗi khi thêm câu hỏi');
+  useEffect(() => {
+    const fetchAIStatus = async () => {
+      try {
+        const response = await gameDataAPI.checkAIStatus();
+        if (response.success) {
+          setAiStatus(response.data);
+        } else {
+          showError('Không thể kiểm tra trạng thái AI');
+        }
+      } catch (error) {
+        showError('Lỗi kết nối server');
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('❌ Lỗi khi thêm câu hỏi:', error);
-      showError(`❌ Lỗi: ${error.message}\n\nVui lòng kiểm tra API server có đang chạy không.`);
-      return false;
-    }
-  };
+    };
+
+    fetchAIStatus();
+  }, []);
 
   return (
-    <div className="ai-assistant-page">
-      <AIAssistant onAddQuestions={handleAddQuestions} />
+    <div className="ai-assistant-manager">
+      <div className="header">
+        <h2>Quản lý Trợ lý AI</h2>
+        <p>Theo dõi trạng thái và cấu hình các dịch vụ AI cho game.</p>
+      </div>
+
+      <div className="status-section">
+        <h3>Trạng thái Dịch vụ AI</h3>
+        {loading ? (
+          <p>Đang tải...</p>
+        ) : aiStatus ? (
+          <div className={`status-card ${aiStatus.available ? 'available' : 'unavailable'}`}>
+            <p>Trạng thái: <strong>{aiStatus.available ? 'Sẵn sàng' : 'Không sẵn sàng'}</strong></p>
+            {aiStatus.message && <p>Thông điệp: {aiStatus.message}</p>}
+          </div>
+        ) : (
+          <p>Không thể lấy trạng thái AI.</p>
+        )}
+      </div>
     </div>
   );
 };
 
-export default AIAssistantPage; 
+export default AIAssistant;

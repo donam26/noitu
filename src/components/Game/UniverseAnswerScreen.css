@@ -2,7 +2,7 @@
 .universe-answer-screen {
   position: relative;
   min-height: 100vh;
-  height: 100vh; /* Giữ chiều cao cố định */
+
   background-color: #0a0f24;
   color: #ffffff;
   font-family: 'Quicksand', 'Arial', sans-serif;
