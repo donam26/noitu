@@ -8,7 +8,7 @@ import './QuizAdminPage.css';
 const QuizAdminPage = () => {
   return (
     <div className="quiz-admin-page">
-      <QuizManager />
+      <QuizManager quizType="quiz" title='Quản lý câu hỏi "Vua Hỏi Ngu"' />
     </div>
   );
 };
