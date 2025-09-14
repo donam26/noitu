@@ -101,16 +101,20 @@ const Modal = ({
           {children}
         </div>
         
-        <div className="modal-footer">
-          <Button variant={cancelVariant} onClick={handleCancel}>
-            {cancelText}
-          </Button>
-          {handleSubmit && (
-            <Button variant={submitVariant} onClick={handleSubmit}>
-              {buttonText}
-            </Button>
-          )}
-        </div>
+                {(handleSubmit || onCancel) && (
+          <div className="modal-footer">
+            {onCancel && (
+              <Button variant={cancelVariant} onClick={handleCancel}>
+                {cancelText}
+              </Button>
+            )}
+            {handleSubmit && (
+              <Button variant={submitVariant} onClick={handleSubmit}>
+                {buttonText}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
