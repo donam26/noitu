@@ -38,7 +38,8 @@ export const quizGameAPI = {
   getRandomQuestion: async (quizType, exclude = []) => {
     try {
       const response = await api.post(`/quiz-game/${quizType}/random`, { exclude });
-      return { success: response.data.success, data: response.data.data, message: response.data.message };
+      const { success, data, message } = response.data;
+      return { success, data, message };
     } catch (error) {
       return handleError(error);
     }
