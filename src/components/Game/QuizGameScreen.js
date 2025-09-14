@@ -70,13 +70,28 @@ const QuizGameScreen = ({ quizType, gameTitle, onBackHome }) => {
     }
 
     const response = await quizGameAPI.getRandomQuestion(quizType, usedQuestionIds);
+    console.log('API Response in QuizGameScreen:', response); // Log the full response
+
     if (!response.success || !response.data?.question) {
       showError('Không thể tải câu hỏi mới. Vui lòng thử lại sau.');
+      console.error('Failed to load new question due to invalid data structure. Response:', response);
       setIsLoading(false);
       return;
     }
 
     const { question, index } = response.data;
+
+    // The API is returning options as a JSON string, so we need to parse it.
+    if (typeof question.options === 'string') {
+      try {
+        question.options = JSON.parse(question.options);
+      } catch (e) {
+        showError('Dữ liệu tùy chọn câu hỏi không hợp lệ.');
+        console.error('Failed to parse question options:', e);
+        setIsLoading(false);
+        return;
+      }
+    }
     if (!question || !Array.isArray(question.options)) {
       showError('Dữ liệu câu hỏi không hợp lệ.');
       setIsLoading(false);
@@ -101,9 +116,22 @@ const QuizGameScreen = ({ quizType, gameTitle, onBackHome }) => {
   }, [questionNumber, maxQuestions, quizType, usedQuestionIds, endGame]);
 
   useEffect(() => {
-    loadNewQuestion();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    let isMounted = true;
+
+    const fetchQuestion = async () => {
+      // Only fetch if the component is mounted
+      if (isMounted) {
+        await loadNewQuestion();
+      }
+    };
+
+    fetchQuestion();
+
+    // Cleanup function to run when the component unmounts or before the effect re-runs
+    return () => {
+      isMounted = false;
+    };
+  }, [loadNewQuestion]);
 
   const handleAnswerSelect = useCallback(async (answerIndex) => {
     if (isAnswered || isGameOver) return;
