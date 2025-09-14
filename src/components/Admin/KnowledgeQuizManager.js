@@ -106,12 +106,12 @@ const KnowledgeQuizManager = () => {
   // Xử lý thay đổi form
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    
+
     if (name === 'option0' || name === 'option1' || name === 'option2' || name === 'option3') {
       const index = parseInt(name.replace('option', ''));
-      const newOptions = [...formData.options];
+      const newOptions = Array.isArray(formData.options) ? [...formData.options] : ['', '', '', ''];
       newOptions[index] = value;
-      
+
       setFormData({
         ...formData,
         options: newOptions
@@ -134,9 +134,9 @@ const KnowledgeQuizManager = () => {
   const handleOpenEditModal = (question) => {
     setCurrentQuestion(question);
     setFormData({
-      question: question.question,
-      options: question.options,
-      correctAnswer: question.correct_answer,
+      question: question.question || '',
+      options: Array.isArray(question.options) ? question.options : ['', '', '', ''],
+      correctAnswer: question.correct_answer || 0,
       explanation: question.explanation || '',
       category: question.category || '',
       difficulty: question.difficulty || 'medium'
@@ -153,7 +153,7 @@ const KnowledgeQuizManager = () => {
   // Xử lý thêm câu hỏi mới
   const handleAddQuestion = async () => {
     try {
-      if (!formData.question || formData.options.some(opt => !opt)) {
+      if (!formData.question || !Array.isArray(formData.options) || formData.options.some(opt => !opt)) {
         showError('Vui lòng nhập đầy đủ câu hỏi và các phương án trả lời');
         return;
       }
@@ -185,7 +185,7 @@ const KnowledgeQuizManager = () => {
   // Xử lý cập nhật câu hỏi
   const handleUpdateQuestion = async () => {
     try {
-      if (!formData.question || formData.options.some(opt => !opt)) {
+      if (!formData.question || !Array.isArray(formData.options) || formData.options.some(opt => !opt)) {
         showError('Vui lòng nhập đầy đủ câu hỏi và các phương án trả lời');
         return;
       }
@@ -315,7 +315,7 @@ const KnowledgeQuizManager = () => {
                   <div className="question-content">
                     <h3>{question.question}</h3>
                     <div className="options-list">
-                      {question.options.map((option, index) => (
+                      {Array.isArray(question.options) ? question.options.map((option, index) => (
                         <div
                           key={index}
                           className={`option ${index === question.correct_answer ? 'correct' : ''}`}
@@ -323,7 +323,11 @@ const KnowledgeQuizManager = () => {
                           {String.fromCharCode(65 + index)}. {option}
                           {index === question.correct_answer && <span className="correct-badge">✓</span>}
                         </div>
-                      ))}
+                      )) : (
+                        <div className="error-message">
+                          Lỗi: Dữ liệu câu hỏi không hợp lệ (options không phải array)
+                        </div>
+                      )}
                     </div>
                     {question.explanation && (
                       <div className="explanation">
@@ -379,7 +383,7 @@ const KnowledgeQuizManager = () => {
 
           <div className="form-group options-group">
             <label>Các phương án trả lời:</label>
-            {formData.options.map((option, index) => (
+            {Array.isArray(formData.options) ? formData.options.map((option, index) => (
               <div key={index} className="option-input">
                 <span className="option-label">
                   {String.fromCharCode(65 + index)}
@@ -400,7 +404,11 @@ const KnowledgeQuizManager = () => {
                   title="Chọn đáp án đúng"
                 />
               </div>
-            ))}
+            )) : (
+              <div className="error-message">
+                Lỗi: formData.options không phải array
+              </div>
+            )}
           </div>
 
           <div className="form-row">
@@ -471,7 +479,7 @@ const KnowledgeQuizManager = () => {
 
           <div className="form-group options-group">
             <label>Các phương án trả lời:</label>
-            {formData.options.map((option, index) => (
+            {Array.isArray(formData.options) ? formData.options.map((option, index) => (
               <div key={index} className="option-input">
                 <span className="option-label">
                   {String.fromCharCode(65 + index)}
@@ -492,7 +500,11 @@ const KnowledgeQuizManager = () => {
                   title="Chọn đáp án đúng"
                 />
               </div>
-            ))}
+            )) : (
+              <div className="error-message">
+                Lỗi: formData.options không phải array
+              </div>
+            )}
           </div>
 
           <div className="form-row">
