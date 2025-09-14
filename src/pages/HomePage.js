@@ -96,7 +96,7 @@ const HomePage = () => {
       <div className="home-container">
         {/* Header Section */}
         <section className="hero-section fade-in">
-          <h1 className="section-title text-center">Game Hub</h1>
+          <h1 className="section-title text-center">Game Hub2</h1>
           <p className="section-subtitle text-center">
             Thư giãn và phát triển trí não với các trò chơi thú vị
           </p>
