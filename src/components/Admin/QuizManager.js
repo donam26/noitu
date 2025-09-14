@@ -21,11 +21,24 @@ const QuizManager = ({ quizType, title }) => {
   const itemsPerPage = 5;
 
   const fetchQuestions = useCallback(async () => {
+    if (!quizType) return; // Do not fetch if quizType is not defined
     setLoading(true);
     try {
       const response = await quizGameAPI.getQuestions(quizType, currentPage, itemsPerPage, { search: searchTerm });
       if (response.success) {
-        setQuestions(response.data.questions);
+        const parsedQuestions = response.data.questions.map(q => {
+          let options = q.options;
+          if (typeof options === 'string') {
+            try {
+              options = JSON.parse(options);
+            } catch (e) {
+              console.error('Failed to parse options:', e);
+              options = []; // Fallback to an empty array on error
+            }
+          }
+          return { ...q, options: Array.isArray(options) ? options : [] };
+        });
+        setQuestions(parsedQuestions);
         setPagination(response.data.pagination);
       } else {
         showError(response.message || 'Không thể tải danh sách câu hỏi');
@@ -68,10 +81,19 @@ const QuizManager = ({ quizType, title }) => {
   };
 
   const handleEdit = (question) => {
+    let options = question.options;
+    if (typeof options === 'string') {
+      try {
+        options = JSON.parse(options);
+      } catch (e) {
+        options = ['', '', '', ''];
+      }
+    }
+
     setFormData({
       ...question,
       correctAnswer: question.correct_answer,
-      options: question.options || ['', '', '', ''],
+      options: Array.isArray(options) ? options : ['', '', '', ''],
     });
     setEditingQuestion(question);
     setShowModal(true);
@@ -96,6 +118,7 @@ const QuizManager = ({ quizType, title }) => {
   };
 
   const handleSave = async () => {
+    if (!quizType) return; // Do not save if quizType is not defined
     if (!formData.question.trim() || formData.options.some(opt => !opt.trim())) {
       showError('Vui lòng điền đầy đủ thông tin!');
       return;
