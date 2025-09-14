@@ -1,16 +1,13 @@
 import React from 'react';
-import KnowledgeQuizManager from '../../components/Admin/KnowledgeQuizManager';
+import QuizManager from '../../components/Admin/QuizManager';
 import './KnowledgeQuizAdminPage.css';
 
-/**
- * KnowledgeQuizAdminPage - Trang quản lý câu hỏi Vua Kiến Thức
- */
 const KnowledgeQuizAdminPage = () => {
   return (
     <div className="knowledge-quiz-admin-page">
-      <KnowledgeQuizManager />
+      <QuizManager quizType="knowledge" title='Quản lý câu hỏi "Vua Kiến Thức"' />
     </div>
   );
 };
 
-export default KnowledgeQuizAdminPage; 
+export default KnowledgeQuizAdminPage;

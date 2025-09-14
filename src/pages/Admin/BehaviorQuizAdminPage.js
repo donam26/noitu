@@ -1,14 +1,11 @@
 import React from 'react';
-import BehaviorQuizManager from '../../components/Admin/BehaviorQuizManager';
+import QuizManager from '../../components/Admin/QuizManager';
 import './BehaviorQuizAdminPage.css';
 
-/**
- * BehaviorQuizAdminPage - Trang quản lý câu hỏi Vua Ứng Xử
- */
 const BehaviorQuizAdminPage = () => {
   return (
     <div className="behavior-quiz-admin-page">
-      <BehaviorQuizManager />
+      <QuizManager quizType="behavior" title='Quản lý câu hỏi "Vua Ứng Xử"' />
     </div>
   );
 };

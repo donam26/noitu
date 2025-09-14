@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import AdminHeader from '../components/Admin/AdminHeader';
 import AdminFooter from '../components/Admin/AdminFooter';
-import { quizAPI, behaviorAPI, knowledgeAPI, guessWhoAPI } from '../services/api';
+import { quizGameAPI } from '../services/quizGameApi';
+import { guessWhoAPI } from '../services/api';
 import './AdminLayout.css';
 
 /**
@@ -57,10 +58,10 @@ const AdminLayout = ({ children }) => {
       };
       
       // Gọi API để lấy tổng số lượng
-      const [quizResponse, behaviorResponse, knowledgeResponse, guessWhoResponse] = await Promise.allSettled([
-        fetchWithTimeout(() => quizAPI.getQuestions(1, 1)),
-        fetchWithTimeout(() => behaviorAPI.getQuestions(1, 1)),
-        fetchWithTimeout(() => knowledgeAPI.getQuestions(1, 1)),
+            const [quizResponse, behaviorResponse, knowledgeResponse, guessWhoResponse] = await Promise.allSettled([
+        fetchWithTimeout(() => quizGameAPI.getQuestions('quiz', 1, 1)),
+        fetchWithTimeout(() => quizGameAPI.getQuestions('behavior', 1, 1)),
+        fetchWithTimeout(() => quizGameAPI.getQuestions('knowledge', 1, 1)),
         fetchWithTimeout(() => guessWhoAPI.getCharacters(1, 1))
       ]);
       

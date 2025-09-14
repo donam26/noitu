@@ -9,27 +9,36 @@ export const GAME_CONFIG = {
     PLAYING: 'PLAYING',
     GAME_OVER: 'GAME_OVER'
   },
+  DEFAULT: {
+    MAX_QUESTIONS: 10,
+    TIME_PER_QUESTION: 15,
+    POINTS_BASE: 100,
+    POINTS_TIME_BONUS: 50
+  },
   QUIZ: {
     MAX_QUESTIONS: 10,
-    TIME_PER_QUESTION: 30
-  },
-  BEHAVIOR_QUIZ: {
-    MAX_QUESTIONS: 10,
-    TIME_PER_QUESTION: 30,
+    TIME_PER_QUESTION: 15,
     POINTS_BASE: 100,
-    POINTS_TIME_BONUS: 50 // Điểm thưởng tối đa cho thời gian
+    POINTS_TIME_BONUS: 50
   },
-  KNOWLEDGE_QUIZ: {
+  BEHAVIOR: {
     MAX_QUESTIONS: 10,
-    TIME_PER_QUESTION: 30,
+    TIME_PER_QUESTION: 15,
     POINTS_BASE: 100,
-    POINTS_TIME_BONUS: 50 // Điểm thưởng tối đa cho thời gian
+    POINTS_TIME_BONUS: 50
   },
-  GUESS_WHO: {
+  KNOWLEDGE: {
     MAX_QUESTIONS: 10,
-    MAX_HINTS: 3, // Số gợi ý tối đa cho mỗi câu hỏi
-    SCORE_PER_QUESTION: 100, // Điểm cơ bản cho mỗi câu đúng
-    HINT_PENALTY: 0 // Không trừ điểm khi sử dụng gợi ý
+    TIME_PER_QUESTION: 15,
+    POINTS_BASE: 100,
+    POINTS_TIME_BONUS: 50
+  },
+  GUESSWHO: {
+    MAX_QUESTIONS: 10,
+    TIME_PER_QUESTION: 15,
+    MAX_HINTS: 3,
+    SCORE_PER_QUESTION: 100,
+    HINT_PENALTY: 0
   }
 };
 

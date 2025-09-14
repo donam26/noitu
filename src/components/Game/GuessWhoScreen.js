@@ -31,8 +31,8 @@ const GuessWhoScreen = ({ onBackHome }) => {
   const [usedCharacterIds, setUsedCharacterIds] = useState([]);
   
   const inputRef = useRef(null);
-  const maxQuestions = GAME_CONFIG.GUESS_WHO?.MAX_QUESTIONS || 10;
-  const maxHints = GAME_CONFIG.GUESS_WHO?.MAX_HINTS || 3;
+  const maxQuestions = GAME_CONFIG.GUESSWHO?.MAX_QUESTIONS || 10;
+  const maxHints = GAME_CONFIG.GUESSWHO?.MAX_HINTS || 3;
 
   // Load game stats và khởi tạo game
   useEffect(() => {
@@ -204,7 +204,7 @@ const GuessWhoScreen = ({ onBackHome }) => {
     setAttempts([]);
     setGuess('');
     setIsAnswered(false);
-    setCurrentQuestionScore(GAME_CONFIG.GUESS_WHO.SCORE_PER_QUESTION);
+    setCurrentQuestionScore(GAME_CONFIG.GUESSWHO.SCORE_PER_QUESTION);
     
     console.log('Câu hỏi mới:', character.name);
   };
@@ -534,7 +534,7 @@ const GuessWhoScreen = ({ onBackHome }) => {
     setIsGameOver(false);
     setShowModal(false);
     setIsAnswered(false);
-    setCurrentQuestionScore(GAME_CONFIG.GUESS_WHO.SCORE_PER_QUESTION);
+    setCurrentQuestionScore(GAME_CONFIG.GUESSWHO.SCORE_PER_QUESTION);
     setUsedCharacterIds([]);
     // Reset tổng số gợi ý đã sử dụng
     // setTotalHintsUsed(0); // Xóa dòng này

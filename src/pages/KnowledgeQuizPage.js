@@ -1,23 +1,20 @@
 import React from 'react';
-import KnowledgeQuizScreen from '../components/Game/KnowledgeQuizScreen';
+import QuizGameScreen from '../components/Game/QuizGameScreen';
 import { useNavigate } from 'react-router-dom';
 import './KnowledgeQuizPage.css';
 
-/**
- * Component KnowledgeQuizPage - Trang chơi game Vua Kiến Thức
- */
 const KnowledgeQuizPage = () => {
   const navigate = useNavigate();
 
-  const handleBackHome = () => {
-    navigate('/');
-  };
-
   return (
-    <div className="quiz-page knowledge-quiz-page">
-      <KnowledgeQuizScreen onBackHome={handleBackHome} />
+    <div className="knowledge-quiz-page">
+      <QuizGameScreen
+        quizType="knowledge"
+        gameTitle="Vua Kiến Thức"
+        onBackHome={() => navigate('/')}
+      />
     </div>
   );
 };
 
-export default KnowledgeQuizPage; 
+export default KnowledgeQuizPage;

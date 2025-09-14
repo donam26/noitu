@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { quizAPI, behaviorAPI, knowledgeAPI } from '../../services/api';
+import { quizGameAPI } from '../../services/quizGameApi';
 import './DashboardPage.css';
 
 /**
@@ -18,7 +18,7 @@ const DashboardPage = () => {
     const fetchStats = async () => {
       try {
         // Lấy số lượng câu hỏi quiz
-        const quizResponse = await quizAPI.getQuestions(1, 1);
+                const quizResponse = await quizGameAPI.getQuestions('quiz', 1, 1);
         if (quizResponse.success) {
           setStats(prev => ({
             ...prev,
@@ -30,7 +30,7 @@ const DashboardPage = () => {
         }
 
         // Lấy số lượng câu hỏi behavior
-        const behaviorResponse = await behaviorAPI.getQuestions(1, 1);
+                const behaviorResponse = await quizGameAPI.getQuestions('behavior', 1, 1);
         if (behaviorResponse.success) {
           setStats(prev => ({
             ...prev,
@@ -42,7 +42,7 @@ const DashboardPage = () => {
         }
 
         // Lấy số lượng câu hỏi knowledge
-        const knowledgeResponse = await knowledgeAPI.getQuestions(1, 1);
+                const knowledgeResponse = await quizGameAPI.getQuestions('knowledge', 1, 1);
         if (knowledgeResponse.success) {
           setStats(prev => ({
             ...prev,

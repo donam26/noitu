@@ -1,23 +1,20 @@
 import React from 'react';
-import QuizScreen from '../components/Game/QuizScreen';
+import QuizGameScreen from '../components/Game/QuizGameScreen';
 import { useNavigate } from 'react-router-dom';
 import './QuizPage.css';
 
-/**
- * Component QuizPage - Trang chơi game quiz
- */
 const QuizPage = () => {
   const navigate = useNavigate();
 
-  const handleBackHome = () => {
-    navigate('/');
-  };
-
   return (
     <div className="quiz-page">
-      <QuizScreen onBackHome={handleBackHome} />
+      <QuizGameScreen
+        quizType="quiz"
+        gameTitle="Vua Hỏi Ngu"
+        onBackHome={() => navigate('/')}
+      />
     </div>
   );
 };
 
-export default QuizPage; 
+export default QuizPage;
