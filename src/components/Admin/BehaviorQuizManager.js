@@ -4,6 +4,7 @@ import Modal from '../common/Modal';
 import { showSuccess, showError, showInfo } from '../../utils/toast';
 import './QuizManager.css';
 import { behaviorAPI } from '../../services/api';
+import AIQuestionGenerator from './AIQuestionGenerator';
 
 /**
  * Component BehaviorQuizManager - Quản lý CRUD câu hỏi Vua Ứng Xử
@@ -16,6 +17,7 @@ const BehaviorQuizManager = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [questionToDelete, setQuestionToDelete] = useState(null);
+  const [showAIModal, setShowAIModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -239,6 +241,9 @@ const BehaviorQuizManager = () => {
         </div>
         
         <div className="quiz-actions">
+          <Button onClick={() => setShowAIModal(true)} className="ai-btn">
+            🤖 Tạo bằng AI
+          </Button>
           <Button onClick={handleAdd} className="add-btn">
             ➕ Thêm câu hỏi
           </Button>
@@ -431,6 +436,22 @@ const BehaviorQuizManager = () => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Modal tạo câu hỏi bằng AI */}
+      <Modal
+        isOpen={showAIModal}
+        onClose={() => setShowAIModal(false)}
+        title="Tạo câu hỏi Vua Ứng Xử bằng AI"
+      >
+        <AIQuestionGenerator
+          api={behaviorAPI}
+          onQuestionsGenerated={() => {
+            setShowAIModal(false);
+            fetchQuestions();
+          }}
+          questionType="behavior"
+        />
       </Modal>
     </div>
   );

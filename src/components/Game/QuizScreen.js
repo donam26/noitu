@@ -113,20 +113,44 @@ const QuizScreen = ({ onBackHome }) => {
       // Xử lý xáo trộn các lựa chọn trên client
       const correctAnswer = question.correct_answer;
       const originalOptions = [...question.options];
-      
+
+      console.log("Debug - correctAnswer:", correctAnswer);
+      console.log("Debug - originalOptions:", originalOptions);
+
       // Lưu đáp án đúng trước khi xáo trộn
-      const correctOption = typeof correctAnswer === 'number' 
-        ? originalOptions[correctAnswer] 
-        : correctAnswer;
-      
+      let correctOption;
+      if (typeof correctAnswer === 'number') {
+        correctOption = originalOptions[correctAnswer];
+      } else if (typeof correctAnswer === 'string') {
+        correctOption = correctAnswer;
+      } else {
+        console.error("Định dạng correct_answer không hợp lệ:", correctAnswer);
+        correctOption = originalOptions[0]; // Fallback
+      }
+
+      console.log("Debug - correctOption:", correctOption);
+
       // Xáo trộn các lựa chọn
       const shuffledOptions = shuffleArray(originalOptions);
-      
+
       // Tìm vị trí mới của đáp án đúng sau khi xáo trộn
       const newCorrectIndex = shuffledOptions.indexOf(correctOption);
-      
+
+      console.log("Debug - shuffledOptions:", shuffledOptions);
+      console.log("Debug - newCorrectIndex:", newCorrectIndex);
+
+      // Kiểm tra nếu không tìm thấy đáp án đúng
+      if (newCorrectIndex === -1) {
+        console.error("Không tìm thấy đáp án đúng trong danh sách options!");
+        console.error("correctOption:", correctOption);
+        console.error("shuffledOptions:", shuffledOptions);
+        // Fallback: sử dụng index 0
+        setCurrentCorrectIndex(0);
+      } else {
+        setCurrentCorrectIndex(newCorrectIndex);
+      }
+
       setCurrentOptions(shuffledOptions);
-      setCurrentCorrectIndex(newCorrectIndex);
       
       // Reset trạng thái
       setSelectedAnswer(-1);
@@ -166,7 +190,22 @@ const QuizScreen = ({ onBackHome }) => {
         setTotalScore(prev => prev + 1);
       } else {
       // Hiển thị thông báo khi trả lời sai
-      const correctOptionText = currentOptions[currentCorrectIndex] || 'không xác định';
+      let correctOptionText = 'không xác định';
+      if (currentCorrectIndex >= 0 && currentCorrectIndex < currentOptions.length) {
+        correctOptionText = currentOptions[currentCorrectIndex];
+      } else {
+        console.error("currentCorrectIndex không hợp lệ:", currentCorrectIndex);
+        console.error("currentOptions:", currentOptions);
+        // Fallback: tìm đáp án từ câu hỏi gốc
+        if (currentQuestion && currentQuestion.correct_answer !== undefined) {
+          const correctAnswer = currentQuestion.correct_answer;
+          if (typeof correctAnswer === 'number' && currentQuestion.options) {
+            correctOptionText = currentQuestion.options[correctAnswer] || 'không xác định';
+          } else if (typeof correctAnswer === 'string') {
+            correctOptionText = correctAnswer;
+          }
+        }
+      }
       showError(`Đáp án đúng là: "${correctOptionText}"`);
       }
       
@@ -192,7 +231,22 @@ const QuizScreen = ({ onBackHome }) => {
     setIsAnswered(true);
     
     // Hiển thị thông báo đáp án đúng khi hết giờ
-    const correctOptionText = currentOptions[currentCorrectIndex] || 'không xác định';
+    let correctOptionText = 'không xác định';
+    if (currentCorrectIndex >= 0 && currentCorrectIndex < currentOptions.length) {
+      correctOptionText = currentOptions[currentCorrectIndex];
+    } else {
+      console.error("currentCorrectIndex không hợp lệ khi hết giờ:", currentCorrectIndex);
+      console.error("currentOptions:", currentOptions);
+      // Fallback: tìm đáp án từ câu hỏi gốc
+      if (currentQuestion && currentQuestion.correct_answer !== undefined) {
+        const correctAnswer = currentQuestion.correct_answer;
+        if (typeof correctAnswer === 'number' && currentQuestion.options) {
+          correctOptionText = currentQuestion.options[correctAnswer] || 'không xác định';
+        } else if (typeof correctAnswer === 'string') {
+          correctOptionText = correctAnswer;
+        }
+      }
+    }
     showError(`Hết giờ! Đáp án đúng là: "${correctOptionText}"`);
     
     // Chờ 2 giây trước khi chuyển câu hỏi tiếp

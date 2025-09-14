@@ -269,6 +269,21 @@ export const quizAPI = {
     }
   },
 
+  // Tạo câu hỏi bằng AI
+  generateQuestions: async (topic, difficulty = 'medium', count = 1) => {
+    try {
+      const response = await api.post('/quiz/generate', { topic, difficulty, count });
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message,
+        errors: response.data.errors
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
   // Cập nhật câu hỏi
   updateQuestion: async (id, questionData) => {
     try {
@@ -392,7 +407,7 @@ export const knowledgeAPI = {
       return handleError(error);
     }
   },
-  
+
   // Thêm nhiều câu hỏi kiến thức cùng lúc
   bulkAddQuestions: async (questionsData) => {
     try {
@@ -401,6 +416,21 @@ export const knowledgeAPI = {
         success: response.data.success,
         data: response.data.data,
         message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Tạo câu hỏi kiến thức bằng AI
+  generateQuestions: async (topic, difficulty = 'medium', count = 1) => {
+    try {
+      const response = await api.post('/knowledge/generate', { topic, difficulty, count });
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message,
+        errors: response.data.errors
       };
     } catch (error) {
       return handleError(error);
@@ -513,7 +543,7 @@ export const behaviorAPI = {
       return handleError(error);
     }
   },
-  
+
   // Thêm nhiều câu hỏi hành vi cùng lúc
   bulkAddQuestions: async (questionsData) => {
     try {
@@ -522,6 +552,21 @@ export const behaviorAPI = {
         success: response.data.success,
         data: response.data.data,
         message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Tạo câu hỏi hành vi bằng AI
+  generateQuestions: async (topic, difficulty = 'medium', count = 1) => {
+    try {
+      const response = await api.post('/behavior/generate', { topic, difficulty, count });
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message,
+        errors: response.data.errors
       };
     } catch (error) {
       return handleError(error);
@@ -1398,4 +1443,78 @@ export const wordleWordAPI = {
   }
 };
 
-export default api; 
+// Service for Guess Who Admin
+export const guessWhoAPI = {
+  // Lấy danh sách nhân vật (admin)
+  getCharacters: async (page = 1, limit = 10, search = '') => {
+    try {
+      const params = { page, limit, search };
+      const response = await api.get('/games/guess-who/admin/characters', { params });
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        pagination: response.data.pagination,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Lấy chi tiết một nhân vật (admin)
+  getCharacterById: async (id) => {
+    try {
+      const response = await api.get(`/games/guess-who/admin/characters/${id}`);
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Tạo nhân vật mới (admin)
+  createCharacter: async (characterData) => {
+    try {
+      const response = await api.post('/games/guess-who/admin/characters', characterData);
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Cập nhật nhân vật (admin)
+  updateCharacter: async (id, characterData) => {
+    try {
+      const response = await api.put(`/games/guess-who/admin/characters/${id}`, characterData);
+      return {
+        success: response.data.success,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
+  // Xóa nhân vật (admin)
+  deleteCharacter: async (id) => {
+    try {
+      const response = await api.delete(`/games/guess-who/admin/characters/${id}`);
+      return {
+        success: response.data.success,
+        message: response.data.message
+      };
+    } catch (error) {
+      return handleError(error);
+    }
+  }
+};
+
+export default api;

@@ -140,7 +140,7 @@ const UniverseAnswerScreen = ({ onBackHome }) => {
     if (!message) {
       message = "Vũ trụ đang tạm thời lặng im. Hãy thử lại sau.";
     }
-    
+
     // Kiểm tra và đảm bảo câu trả lời hoàn chỉnh
     if (message && message.trim() !== "") {
       // Đảm bảo chữ cái đầu viết hoa
@@ -149,30 +149,32 @@ const UniverseAnswerScreen = ({ onBackHome }) => {
         message = message[0].toUpperCase() + message.substring(1);
       }
     }
-    
-    // Reset typedMessage trước khi bắt đầu hiệu ứng
-    setTypedMessage('');
-    
-    let i = 0;
-    const txt = message;
-    let isTyping = true;
-    
+
     // Xóa typeWriter cũ nếu có
     if (typeWriterRef.current) {
       typeWriterRef.current();
     }
-    
-    const type = () => {
-      if (i < txt.length && isTyping) {
-        setTypedMessage(prev => prev + txt.charAt(i));
-        i++;
-        setTimeout(type, typingSpeed);
+
+    const txt = message;
+    let isTyping = true;
+
+    // Reset typedMessage và bắt đầu hiệu ứng
+    setTypedMessage('');
+
+    const type = (currentIndex) => {
+      if (currentIndex < txt.length && isTyping) {
+        setTypedMessage(txt.substring(0, currentIndex + 1));
+        setTimeout(() => type(currentIndex + 1), typingSpeed);
       }
     };
-    
-    // Bắt đầu hiệu ứng đánh chữ
-    type();
-    
+
+    // Bắt đầu hiệu ứng đánh chữ với delay nhỏ để đảm bảo state được reset
+    setTimeout(() => {
+      if (isTyping) {
+        type(0);
+      }
+    }, 10);
+
     // Lưu hàm stop để cleanup
     typeWriterRef.current = () => {
       isTyping = false;

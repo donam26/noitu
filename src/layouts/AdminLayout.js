@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import AdminHeader from '../components/Admin/AdminHeader';
 import AdminFooter from '../components/Admin/AdminFooter';
-import { quizAPI, behaviorAPI, knowledgeAPI } from '../services/api';
+import { quizAPI, behaviorAPI, knowledgeAPI, guessWhoAPI } from '../services/api';
 import './AdminLayout.css';
 
 /**
@@ -17,6 +17,7 @@ const AdminLayout = ({ children }) => {
   const [quizCount, setQuizCount] = useState(0);
   const [behaviorCount, setBehaviorCount] = useState(0);
   const [knowledgeCount, setKnowledgeCount] = useState(0);
+  const [guessWhoCount, setGuessWhoCount] = useState(0);
   
   // Xác định tab đang active dựa vào đường dẫn hiện tại
   const getActiveTab = () => {
@@ -24,6 +25,7 @@ const AdminLayout = ({ children }) => {
     if (path.includes('/admin/quiz')) return 'quiz';
     if (path.includes('/admin/behavior')) return 'behavior';
     if (path.includes('/admin/knowledge')) return 'knowledge';
+    if (path.includes('/admin/guess-who')) return 'guess-who';
     if (path.includes('/admin/vocabulary')) return 'vocabulary';
     if (path.includes('/admin/ai')) return 'ai';
     return 'dashboard'; // Mặc định là dashboard
@@ -55,10 +57,11 @@ const AdminLayout = ({ children }) => {
       };
       
       // Gọi API để lấy tổng số lượng
-      const [quizResponse, behaviorResponse, knowledgeResponse] = await Promise.allSettled([
+      const [quizResponse, behaviorResponse, knowledgeResponse, guessWhoResponse] = await Promise.allSettled([
         fetchWithTimeout(() => quizAPI.getQuestions(1, 1)),
         fetchWithTimeout(() => behaviorAPI.getQuestions(1, 1)),
-        fetchWithTimeout(() => knowledgeAPI.getQuestions(1, 1))
+        fetchWithTimeout(() => knowledgeAPI.getQuestions(1, 1)),
+        fetchWithTimeout(() => guessWhoAPI.getCharacters(1, 1))
       ]);
       
       // Xử lý kết quả cho quiz
@@ -77,6 +80,12 @@ const AdminLayout = ({ children }) => {
       if (knowledgeResponse.status === 'fulfilled' && knowledgeResponse.value.success) {
         const total = knowledgeResponse.value.data?.pagination?.total || 0;
         setKnowledgeCount(total);
+      }
+
+      // Xử lý kết quả cho guess who
+      if (guessWhoResponse.status === 'fulfilled' && guessWhoResponse.value.success) {
+        const total = guessWhoResponse.value.pagination?.total || 0;
+        setGuessWhoCount(total);
       }
     } catch (error) {
       console.error('❌ Lỗi khi lấy số lượng câu hỏi:', error);
@@ -118,8 +127,10 @@ const AdminLayout = ({ children }) => {
       loadQuestionCounts();
     } else if (activeTab === 'knowledge' && knowledgeCount === 0) {
       loadQuestionCounts();
+    } else if (activeTab === 'guess-who' && guessWhoCount === 0) {
+      loadQuestionCounts();
     }
-  }, [activeTab, quizCount, behaviorCount, knowledgeCount]);
+  }, [activeTab, quizCount, behaviorCount, knowledgeCount, guessWhoCount]);
 
   const tabs = [
     {
@@ -149,6 +160,13 @@ const AdminLayout = ({ children }) => {
       icon: '🧠',
       path: '/admin/knowledge',
       count: knowledgeCount
+    },
+    {
+      id: 'guess-who',
+      label: 'Tôi là ai?',
+      icon: '👤',
+      path: '/admin/guess-who',
+      count: guessWhoCount
     },
     {
       id: 'vocabulary',

@@ -4,6 +4,7 @@ import Modal from '../common/Modal';
 import { showSuccess, showError, showInfo } from '../../utils/toast';
 import './QuizManager.css';
 import { quizAPI } from '../../services/api';
+import AIQuestionGenerator from './AIQuestionGenerator';
 
 /**
  * Component QuizManager - Quản lý CRUD câu hỏi Hỏi Ngu
@@ -20,6 +21,7 @@ const QuizManager = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showAIModal, setShowAIModal] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   
   const [formData, setFormData] = useState({
@@ -235,6 +237,9 @@ const QuizManager = () => {
         </div>
         
         <div className="quiz-actions">
+          <Button onClick={() => setShowAIModal(true)} className="ai-btn">
+            🤖 Tạo bằng AI
+          </Button>
           <Button onClick={handleOpenAddModal} className="add-btn">
             ➕ Thêm câu hỏi
           </Button>
@@ -470,6 +475,21 @@ const QuizManager = () => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Modal tạo câu hỏi bằng AI */}
+      <Modal
+        isOpen={showAIModal}
+        onClose={() => setShowAIModal(false)}
+        title="Tạo câu hỏi bằng AI"
+      >
+        <AIQuestionGenerator
+          api={quizAPI}
+          onQuestionsGenerated={() => {
+            setShowAIModal(false);
+            fetchQuestions();
+          }}
+        />
       </Modal>
     </div>
   );

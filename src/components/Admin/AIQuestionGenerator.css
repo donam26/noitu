@@ -1,0 +1,45 @@
+.ai-question-generator {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    background-color: #f9f9f9;
+}
+
+.ai-question-generator .form-group {
+    margin-bottom: 15px;
+}
+
+.ai-question-generator .form-group-inline {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.ai-question-generator .generate-btn {
+    width: 100%;
+}
+
+.generated-preview {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.question-card-ai {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+
+.question-card-ai ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.question-card-ai .correct {
+    font-weight: bold;
+    color: #28a745;
+}
+

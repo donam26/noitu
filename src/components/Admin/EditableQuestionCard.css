@@ -1,0 +1,42 @@
+.editable-question-card {
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.editable-question-card .form-group {
+    margin-bottom: 12px;
+}
+
+.editable-question-card label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 0.9em;
+}
+
+.editable-question-card textarea,
+.editable-question-card input[type="text"] {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.editable-question-card .option-input {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.editable-question-card .option-input input[type="radio"] {
+    margin-right: 10px;
+}
+
+.editable-question-card .form-actions {
+    text-align: right;
+    margin-top: 16px;
+}
+

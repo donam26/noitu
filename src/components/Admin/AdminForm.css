@@ -1,0 +1,40 @@
+.admin-form {
+    padding: 1rem;
+}
+
+.admin-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.admin-form .form-group-checkbox {
+    display: flex;
+    align-items: center;
+}
+
+.admin-form .form-group-checkbox input {
+    margin-right: 0.5rem;
+}
+
+.admin-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.admin-form input[type="text"],
+.admin-form input[type="number"],
+.admin-form select,
+.admin-form textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.admin-form .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+

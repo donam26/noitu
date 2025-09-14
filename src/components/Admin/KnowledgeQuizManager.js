@@ -4,6 +4,7 @@ import Modal from '../common/Modal';
 import { showSuccess, showError } from '../../utils/toast';
 import './QuizManager.css';
 import { knowledgeAPI } from '../../services/api';
+import AIQuestionGenerator from './AIQuestionGenerator';
 
 /**
  * Component KnowledgeQuizManager - Quản lý CRUD câu hỏi Vua Kiến Thức
@@ -23,6 +24,7 @@ const KnowledgeQuizManager = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showAIModal, setShowAIModal] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
 
   // Form state
@@ -269,6 +271,9 @@ const KnowledgeQuizManager = () => {
         </div>
         
         <div className="quiz-actions">
+          <Button onClick={() => setShowAIModal(true)} className="ai-btn">
+            🤖 Tạo bằng AI
+          </Button>
           <Button onClick={handleOpenAddModal} className="add-btn">
             ➕ Thêm câu hỏi
           </Button>
@@ -556,6 +561,22 @@ const KnowledgeQuizManager = () => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Modal tạo câu hỏi bằng AI */}
+      <Modal
+        isOpen={showAIModal}
+        onClose={() => setShowAIModal(false)}
+        title="Tạo câu hỏi Vua Kiến Thức bằng AI"
+      >
+        <AIQuestionGenerator
+          api={knowledgeAPI}
+          onQuestionsGenerated={() => {
+            setShowAIModal(false);
+            fetchQuestions();
+          }}
+          questionType="knowledge"
+        />
       </Modal>
     </div>
   );

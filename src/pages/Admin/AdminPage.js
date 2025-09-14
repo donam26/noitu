@@ -8,6 +8,7 @@ import BehaviorQuizAdminPage from '../Admin/BehaviorQuizAdminPage';
 import KnowledgeQuizAdminPage from '../Admin/KnowledgeQuizAdminPage';
 import WordleWordsPage from '../Admin/WordleWordsPage';
 import AIAssistantPage from '../Admin/AIAssistantPage';
+import GuessWhoAdminPage from '../Admin/GuessWhoAdminPage';
 import './AdminPage.css';
 import { authAPI } from '../../services/api';
 /**
@@ -123,6 +124,12 @@ const AdminPage = () => {
       <Route path="knowledge" element={
         <AdminLayout>
           <KnowledgeQuizAdminPage />
+        </AdminLayout>
+      } />
+
+      <Route path="guess-who" element={
+        <AdminLayout>
+          <GuessWhoAdminPage />
         </AdminLayout>
       } />
 
