@@ -44,6 +44,15 @@ export const quizGameAPI = {
     }
   },
 
+  getGameSessionQuestions: async (quizType, options = {}) => {
+    try {
+      const response = await api.post(`/quiz-game/${quizType}/session-questions`, options);
+      return response.data;
+    } catch (error) {
+      return handleError(error);
+    }
+  },
+
   addQuestion: async (quizType, questionData) => {
     try {
       const response = await api.post(`/quiz-game/${quizType}`, questionData);
