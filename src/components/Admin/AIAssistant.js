@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Button from '../common/Button';
+import api from '../../services/api'; // Import a service to call the backend API
 import './AIAssistant.css';
 
 /**
@@ -14,8 +15,7 @@ const AIAssistant = ({ onAddQuestions }) => {
   const [selectedQuestions, setSelectedQuestions] = useState(new Set());
   const [questionType, setQuestionType] = useState('quiz');
 
-  // API key cố định (đã được fix)
-  const API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
+
 
   // Prompt cố định cho từng loại câu hỏi
   const DEFAULT_PROMPTS = {
@@ -53,55 +53,23 @@ const AIAssistant = ({ onAddQuestions }) => {
     Hãy tạo câu hỏi khoa học thú vị và bổ ích.`
   };
 
-  // Call OpenAI API
-  const callOpenAI = async (prompt) => {
+  // Call Backend API to generate questions with Gemini
+  const callBackendAPI = async (prompt, type) => {
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            {
-              role: 'system',
-              content: `Bạn là một chuyên gia tạo câu hỏi quiz thú vị bằng tiếng Việt. 
-              Trả lời theo định dạng JSON chính xác như sau:
-              {
-                "questions": [
-                  {
-                    "question": "Nội dung câu hỏi",
-                    "options": ["Lựa chọn A", "Lựa chọn B", "Lựa chọn C", "Lựa chọn D"],
-                    "correctAnswer": 0,
-                    "explanation": "Giải thích đáp án"
-                  }
-                ]
-              }`
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          max_tokens: 1500,
-          temperature: 0.8
-        })
+      const response = await api.post('/games/generate-questions', {
+        topic: prompt,
+        count: 5,
+        difficulty: 'medium',
+        type: type
       });
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error?.message || 'API call failed');
+      if (response.data && response.data.success) {
+        return response.data.data;
+      } else {
+        throw new Error(response.data.message || 'API call failed');
       }
-
-      const content = data.choices[0].message.content;
-      const result = JSON.parse(content);
-      return result.questions || [];
-      
     } catch (error) {
-      console.error('OpenAI API Error:', error);
+      console.error('Backend API Error:', error);
       throw error;
     }
   };
@@ -115,7 +83,7 @@ const AIAssistant = ({ onAddQuestions }) => {
     setIsGenerating(true);
 
     try {
-      const questions = await callOpenAI(prompt);
+      const questions = await callBackendAPI(prompt, questionType);
       
       if (questions && questions.length > 0) {
         setGeneratedQuestions(questions);
